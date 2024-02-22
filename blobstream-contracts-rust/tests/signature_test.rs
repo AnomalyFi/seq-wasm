@@ -1,0 +1,1 @@
+// use blobstream_contracts_rust::signature::is_sig_nil;

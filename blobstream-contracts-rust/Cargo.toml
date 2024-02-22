@@ -8,6 +8,10 @@ edition = "2021"
 [dependencies]
 wee_alloc = "0.4.5"
 alloy-sol-macro = "0.6.3"
+alloy-sol-types = "0.6.3"
+alloy-primitives = "0.6.3"
+sha3 = "0.10.8"
+k256 = { version = "0.13.3", default-features = false, features = ["ecdsa"] }
 
 [profile.release]
 opt-level = "z"
