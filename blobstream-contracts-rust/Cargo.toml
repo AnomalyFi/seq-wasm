@@ -10,8 +10,12 @@ wee_alloc = "0.4.5"
 alloy-sol-macro = "0.6.3"
 alloy-sol-types = "0.6.3"
 alloy-primitives = "0.6.3"
-sha3 = "0.10.8"
-k256 = { version = "0.13.3", default-features = false, features = ["ecdsa"] }
+secp256k1 = { version = "0.28.2", default-features = false, features = [
+    "alloc",
+    "recovery",
+] }
+sha2 = { version = "0.10", default-features = false }
+
 
 [profile.release]
 opt-level = "z"
@@ -20,7 +24,7 @@ codegen-units = 1
 
 [lib]
 # cdylib builds a a %.wasm file with `cargo build --release --target wasm32-unknown-unknown`
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "lib"]
 name = "blobstream_contracts_rust"
 
 [workspace]

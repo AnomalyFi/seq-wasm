@@ -1,54 +1,42 @@
-use super::{PackerEthSignedMessage, Signature2};
-use alloy_primitives::{keccak256, Address, FixedBytes, Signature, B256, B512, U256};
+use super::{PackerEthSignedMessage, Signature};
+use alloy_primitives::{keccak256, Address, Bytes, FixedBytes, B256, B512, U256};
 use alloy_sol_types::{abi, SolType, SolValue};
-use k256::ecdsa::{Error, RecoveryId, Signature as SignatureK, VerifyingKey};
+use secp256k1::{
+    ecdsa::{RecoverableSignature, RecoveryId},
+    Message, Secp256k1,
+};
 
-pub fn is_sig_nil(sig: Signature) -> bool {
-    // write tests for this
-    //  return (_sig.r == 0 && _sig.s == 0 && _sig.v == 0);
-    let zero: U256 = alloy_primitives::U256::from(0);
-    let zero_parity = alloy_primitives::Parity::Eip155(0);
-    sig.r() == zero && sig.s() == zero && sig.v() == zero_parity
+pub fn is_sig_nil(sig: &Signature) -> bool {
+    let zero_fb_32 = FixedBytes::<32>::with_last_byte(0);
+    sig.r == zero_fb_32 && sig.s == zero_fb_32 && sig.v == 0
 }
 
-pub fn to_eth_signed_message_hash(hash: B256) -> Vec<u8> {
+pub fn to_eth_signed_message_hash(hash: Bytes) -> Vec<u8> {
     PackerEthSignedMessage {
         EIP191_SIGNED_MESSAGE: "\x19Ethereum Signed Message:\n".to_string(),
-        hash: hash,
+        len: hash.len().to_string(),
+        hash: hash.to_vec(),
     }
     .abi_encode_packed()
 }
 
-#[cfg(not(feature = "secp256k1"))]
-pub fn ecrecover(sig: &B512, mut recid: u8, msg: &B256) -> Result<B256, Error> {
-    // parse signature
-    let mut sig = SignatureK::from_slice(sig.as_slice())?;
+pub fn ecrecover(sig: &B512, recid: u8, msg: &B256) -> Result<B256, secp256k1::Error> {
+    let recid = RecoveryId::from_i32(recid as i32).expect("recovery ID is valid");
+    let sig = RecoverableSignature::from_compact(sig.as_slice(), recid)?;
 
-    // normalize signature and flip recovery id if needed.
-    if let Some(sig_normalized) = sig.normalize_s() {
-        sig = sig_normalized;
-        recid ^= 1;
-    }
-    let recid = RecoveryId::from_byte(recid).expect("recovery ID is valid");
+    let secp = Secp256k1::new();
+    let msg = Message::from_digest_slice(msg.as_slice())?;
+    let public = secp.recover_ecdsa(&msg, &sig)?;
 
-    // recover key
-    let recovered_key = VerifyingKey::recover_from_prehash(&msg[..], &sig, recid)?;
-    // hash it
-    let mut hash = keccak256(
-        &recovered_key
-            .to_encoded_point(/* compress = */ false)
-            .as_bytes()[1..],
-    );
-
-    // truncate to 20 bytes
+    let mut hash = keccak256(&public.serialize_uncompressed()[1..]);
     hash[..12].fill(0);
     Ok(hash)
 }
 
-pub fn verify_sig(mut signer: Address, digest: FixedBytes<32>, sig: Signature2) -> bool {
+pub fn verify_sig(signer: Address, digest: Bytes, sig: &Signature) -> bool {
     let digest_eip191 = to_eth_signed_message_hash(digest);
 
-    let digest_fixed: FixedBytes<32> = FixedBytes::from_slice(&digest_eip191);
+    let digest_fixed = keccak256(digest_eip191);
     let v = sig.v - 27;
     if v != 0 && v != 1 {
         return false;
@@ -64,31 +52,87 @@ pub fn verify_sig(mut signer: Address, digest: FixedBytes<32>, sig: Signature2) 
 }
 #[cfg(test)]
 mod tests {
-    use alloy_primitives::{Sign, Signature, U256};
-    use sha3::digest::typenum::Zero;
-
-    use super::is_sig_nil;
-    // r=0x28ef61340bd939bc2195fe537567866003e1a15d3c71ff63e1590620aa636276
-    // v=0x25=37
-    // s=0x67cbe9d8997f761aecb703304b3800ccf555c9f3dc64214b297fb1966a3b6d83
+    use super::{is_sig_nil, verify_sig};
+    use crate::Signature;
+    use alloy_primitives::{address, bytes, fixed_bytes, FixedBytes, Sign, U256};
 
     #[test]
     fn test_not_nil_sig() {
-        let bytes = [
+        let r = &[
             40 as u8, 239, 97, 52, 11, 217, 57, 188, 33, 149, 254, 83, 117, 103, 134, 96, 3, 225,
-            161, 93, 60, 113, 255, 99, 225, 89, 6, 32, 170, 99, 98, 118, 103, 203, 233, 216, 153,
-            127, 118, 26, 236, 183, 3, 48, 75, 56, 0, 204, 245, 85, 201, 243, 220, 100, 33, 75, 41,
-            127, 177, 150, 106, 59, 109, 131,
+            161, 93, 60, 113, 255, 99, 225, 89, 6, 32, 170, 99, 98, 118,
+        ];
+        let s = &[
+            103 as u8, 203, 233, 216, 153, 127, 118, 26, 236, 183, 3, 48, 75, 56, 0, 204, 245, 85,
+            201, 243, 220, 100, 33, 75, 41, 127, 177, 150, 106, 59, 109, 131,
         ];
 
-        let sig = Signature::from_bytes_and_parity(&bytes, 100).unwrap();
-        assert_eq!(false, is_sig_nil(sig))
+        let sig = Signature {
+            v: 27,
+            r: FixedBytes::from_slice(r),
+            s: FixedBytes::from_slice(s),
+        };
+        assert_eq!(false, is_sig_nil(&sig))
     }
     #[test]
     fn test_nil_sig() {
-        let bytes = [0 as u8; 64];
-        let sig = Signature::from_bytes_and_parity(&bytes, 0).unwrap();
-        let zero: U256 = alloy_primitives::U256::from(0);
-        assert_eq!(true, is_sig_nil(sig))
+        let r = &[0 as u8; 32];
+        let sig = Signature {
+            v: 0,
+            r: r.into(),
+            s: r.into(),
+        };
+        assert_eq!(true, is_sig_nil(&sig))
+    }
+    #[test]
+    fn test_verify_valid_sig() {
+        let signer = address!("9c2B12b5a07FC6D719Ed7646e5041A7E85758329");
+        let digest = bytes!("0de92bac0b356560d821f8e7b6f5c9fe4f3f88f6c822283efd7ab51ad56a640e");
+        let v: u8 = 27;
+        let r = fixed_bytes!("5ed039605f2ff0b5431d47b951e0f6868686d7a41541da9810c5d93eaf34251e");
+        let s = fixed_bytes!("7752efe4b8c794762181ad152f86fd2d7fecbf444b392bfde90d6fad1e79695f");
+        let sig = Signature { v: v, r: r, s: s };
+        assert_eq!(true, verify_sig(signer, digest, &sig));
+    }
+    #[test]
+    fn test_wrong_signer() {
+        let signer = address!("35AeEb1cAc11D7C084e65F3217f111dA03493bB1");
+        let digest = bytes!("0de92bac0b356560d821f8e7b6f5c9fe4f3f88f6c822283efd7ab51ad56a640e");
+        let v: u8 = 27;
+        let r = fixed_bytes!("5ed039605f2ff0b5431d47b951e0f6868686d7a41541da9810c5d93eaf34251e");
+        let s = fixed_bytes!("7752efe4b8c794762181ad152f86fd2d7fecbf444b392bfde90d6fad1e79695f");
+        let sig = Signature { v: v, r: r, s: s };
+        assert_eq!(false, verify_sig(signer, digest, &sig));
+    }
+    #[test]
+    fn test_wrong_sig_v() {
+        let signer = address!("9c2B12b5a07FC6D719Ed7646e5041A7E85758329");
+        let digest = bytes!("0de92bac0b356560d821f8e7b6f5c9fe4f3f88f6c822283efd7ab51ad56a640e");
+        let v: u8 = 28;
+        let r = fixed_bytes!("5ed039605f2ff0b5431d47b951e0f6868686d7a41541da9810c5d93eaf34251e");
+        let s = fixed_bytes!("7752efe4b8c794762181ad152f86fd2d7fecbf444b392bfde90d6fad1e79695f");
+        let sig = Signature { v: v, r: r, s: s };
+        assert_eq!(false, verify_sig(signer, digest, &sig));
+    }
+    #[test]
+    fn test_wrong_digest() {
+        let signer = address!("9c2B12b5a07FC6D719Ed7646e5041A7E85758329");
+        let digest = bytes!("86d0ff68891491bd7edc2a1f2eec35ab473cc6d55bef94c4388d76a15e456ad2");
+        let v: u8 = 27;
+        let r = fixed_bytes!("5ed039605f2ff0b5431d47b951e0f6868686d7a41541da9810c5d93eaf34251e");
+        let s = fixed_bytes!("7752efe4b8c794762181ad152f86fd2d7fecbf444b392bfde90d6fad1e79695f");
+        let sig = Signature { v: v, r: r, s: s };
+        assert_eq!(false, verify_sig(signer, digest, &sig));
+    }
+    #[test]
+    fn test_valid_dsvsd_sig() {
+        //check for domain seperator validator data signature to be valid ? next constuct the digest from our tooling @todo
+        let digest = bytes!("41e6dab883d55f97064a93fda5054aa5ba6ef1b1d41c55f608dac0242c924efc");
+        let signer = address!("9c2B12b5a07FC6D719Ed7646e5041A7E85758329");
+        let v: u8 = 27;
+        let r = fixed_bytes!("02bd9e5fe41ca09e69c688eb127ba3a710ba0f9f9080b13c1f003126a74be2d5");
+        let s = fixed_bytes!("6dc6943fc93d17984e3ac3023b15030b33a5c9b6e647ddfb3a7f19a1c3ce9a2e");
+        let sig = Signature { v, r, s };
+        assert_eq!(true, verify_sig(signer, digest, &sig))
     }
 }
