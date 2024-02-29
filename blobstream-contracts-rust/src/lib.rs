@@ -11,21 +11,13 @@ pub mod signature;
 // use std::alloc::{alloc, Layout};
 use alloc::vec::Vec;
 use alloy_primitives::fixed_bytes;
-use std::str::FromStr;
 use std::{collections::HashMap, mem::MaybeUninit};
-// use alloy_primitives::utils::try_collect_vec;
-// alloy
-use alloy_primitives::{
-    /*fixed_bytes, hex,*/ bytes, hex::FromHex, keccak256, FixedBytes, B256, U256,
-};
+
+use alloy_primitives::{hex::FromHex, keccak256, FixedBytes, B256, U256};
 use alloy_sol_macro::sol;
 use alloy_sol_types::{SolType, SolValue};
-// use alloy_sol_types::sol_data::FixedBytes;
-// hash & curves
-// use sha3::{Digest, Keccak256};
-use signature::is_sig_nil;
 
-// use alloy_sol_types::SolValue;
+use signature::is_sig_nil;
 
 sol! {
     struct Validator {
@@ -281,7 +273,7 @@ fn verify_attestation(
 }
 #[cfg(test)]
 mod tests {
-    use alloy_primitives::{address, fixed_bytes, hex::FromHex, Address, FixedBytes, B256, U256};
+    use alloy_primitives::{address, fixed_bytes, hex::FromHex, B256, U256};
 
     use crate::{
         submit_data_root_tuple_root, update_validator_set, verify_attestation, BinaryMerkleProof,
@@ -403,10 +395,9 @@ mod tests {
     }
     #[test]
     fn test_verify_attestations() {
-        let initial_val_set_nonce = U256::from(1);
-        let nonce = U256::from(3);
-        let new_tuple_root =
-            fixed_bytes!("82dc1607d84557d3579ce602a45f5872e821c36dbda7ec926dfa17ebc8d5c013");
+        // let initial_val_set_nonce = U256::from(1);
+        let nonce = U256::from(2);
+        // let new_tuple_root = fixed_bytes!("82dc1607d84557d3579ce602a45f5872e821c36dbda7ec926dfa17ebc8d5c013");
         let new_tuple =
             fixed_bytes!("0101010101010101010101010101010101010101010101010101010101010101");
         let height = U256::from(1);

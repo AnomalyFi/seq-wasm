@@ -1,6 +1,6 @@
 use super::{PackerEthSignedMessage, Signature};
-use alloy_primitives::{keccak256, Address, Bytes, FixedBytes, B256, B512, U256};
-use alloy_sol_types::{abi, SolType, SolValue};
+use alloy_primitives::{keccak256, Address, Bytes, FixedBytes, B256, B512};
+use alloy_sol_types::SolValue;
 use secp256k1::{
     ecdsa::{RecoverableSignature, RecoveryId},
     Message, Secp256k1,
@@ -54,7 +54,7 @@ pub fn verify_sig(signer: Address, digest: Bytes, sig: &Signature) -> bool {
 mod tests {
     use super::{is_sig_nil, verify_sig};
     use crate::Signature;
-    use alloy_primitives::{address, bytes, fixed_bytes, FixedBytes, Sign, U256};
+    use alloy_primitives::{address, bytes, fixed_bytes, FixedBytes};
 
     #[test]
     fn test_not_nil_sig() {

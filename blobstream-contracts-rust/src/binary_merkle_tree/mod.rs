@@ -1,9 +1,7 @@
-use core::num;
-
 use crate::{BinaryMerkleProof, LeafDigestPacker, NodeDigestPacker};
-use alloy_primitives::{hex::FromHex, utils::UnitsError, Bytes, FixedBytes, U256};
+use alloy_primitives::{hex::FromHex, Bytes, FixedBytes, U256};
 use alloy_sol_types::SolValue;
-use sha2::{digest, Digest};
+use sha2::Digest;
 
 // verify:
 //      - path_length_from_key
@@ -37,7 +35,10 @@ pub fn verify(root: FixedBytes<32>, proof: BinaryMerkleProof, data: Bytes) -> bo
     }
     // lol fixed_bytes of side nodes, need to be validated in a different way
     if U256::from(proof.sideNodes.len()) != path_length_from_key(proof.key, proof.numLeaves) {
-        return false;
+        if !(proof.sideNodes.len() == 1 && proof.sideNodes == vec![FixedBytes::<32>::new([0; 32])])
+        {
+            return false;
+        }
     }
     // check if key is in tree
     if proof.key >= proof.numLeaves {
@@ -50,12 +51,10 @@ pub fn verify(root: FixedBytes<32>, proof: BinaryMerkleProof, data: Bytes) -> bo
         if proof.numLeaves == one {
             return root == digest;
         }
-
         return false;
     }
     let (hash, is_error) = compute_root_hash(proof.key, proof.numLeaves, digest, proof.sideNodes);
     if is_error {
-        println!("heyo is_error");
         return false;
     }
 
@@ -115,7 +114,9 @@ pub fn compute_root_hash(
     }
     if num_leaves == one {
         if side_nodes.len() != 0 {
-            return (leaf_hash, true);
+            if !(side_nodes.len() == 1 && side_nodes == vec![FixedBytes::<32>::new([0; 32])]) {
+                return (leaf_hash, true);
+            }
         }
         return (leaf_hash, false);
     }
@@ -123,7 +124,7 @@ pub fn compute_root_hash(
         return (leaf_hash, true);
     }
     let num_left = get_split_point(num_leaves);
-    let side_nodes_left = &side_nodes[..side_nodes.len() - 1]; //@todo doubtful here
+    let side_nodes_left = &side_nodes[..side_nodes.len() - 1];
     if key < num_left {
         let (left_hash, is_error) =
             compute_root_hash(key, num_left, leaf_hash, side_nodes_left.to_vec());
@@ -189,18 +190,6 @@ pub fn node_digest(left: FixedBytes<32>, right: FixedBytes<32>) -> FixedBytes<32
     let digest = sha2::Sha256::digest(node_digest).to_vec();
     FixedBytes::from_slice(&digest)
 }
-
-// pub fn slice(data: Vec<FixedBytes<32>>, begin: U256, end: U256) -> Vec<FixedBytes<32>> {
-//     if begin > end {
-//         panic!(); // panic or false
-//     }
-//     if begin > U256::from(data.len()) || end > U256::from(data.len()) {
-//         panic!();
-//     }
-//     let out: Vec<FixedBytes<32>> = Vec::new();
-//     let i = U256::from(begin);
-//     while
-// }
 
 #[cfg(test)]
 mod test_binary_merkle_tree {

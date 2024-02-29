@@ -1,4 +1,3 @@
-use core::num;
 use std::vec;
 
 use alloy_primitives::{bytes, fixed_bytes, FixedBytes, U256};
