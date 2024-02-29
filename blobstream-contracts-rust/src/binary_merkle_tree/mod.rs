@@ -27,9 +27,16 @@ use sha2::{digest, Digest};
 pub fn verify(root: FixedBytes<32>, proof: BinaryMerkleProof, data: Bytes) -> bool {
     let one = U256::from(1);
     if proof.numLeaves <= one {
-        return false; // @todo should we include error codes?
-    } else if U256::from(proof.sideNodes.len()) != path_length_from_key(proof.key, proof.numLeaves)
-    {
+        if proof.sideNodes.len() != 0 {
+            if !(proof.sideNodes.len() == 1
+                && proof.sideNodes == vec![FixedBytes::<32>::new([0; 32])])
+            {
+                return false; // @todo should we include error codes?
+            }
+        }
+    }
+    // lol fixed_bytes of side nodes, need to be validated in a different way
+    if U256::from(proof.sideNodes.len()) != path_length_from_key(proof.key, proof.numLeaves) {
         return false;
     }
     // check if key is in tree
@@ -43,10 +50,12 @@ pub fn verify(root: FixedBytes<32>, proof: BinaryMerkleProof, data: Bytes) -> bo
         if proof.numLeaves == one {
             return root == digest;
         }
+
         return false;
     }
     let (hash, is_error) = compute_root_hash(proof.key, proof.numLeaves, digest, proof.sideNodes);
     if is_error {
+        println!("heyo is_error");
         return false;
     }
 
@@ -98,20 +107,20 @@ pub fn compute_root_hash(
     num_leaves: U256,
     leaf_hash: FixedBytes<32>,
     side_nodes: Vec<FixedBytes<32>>,
-) -> (FixedBytes<32>, bool) {
+) -> (FixedBytes<32>, bool /* is_error */) {
     let zero = U256::from(0);
     let one = U256::from(1);
     if num_leaves == zero {
-        return (leaf_hash, false);
+        return (leaf_hash, true);
     }
     if num_leaves == one {
         if side_nodes.len() != 0 {
-            return (leaf_hash, false);
+            return (leaf_hash, true);
         }
-        return (leaf_hash, true);
+        return (leaf_hash, false);
     }
     if side_nodes.len() == 0 {
-        return (leaf_hash, false);
+        return (leaf_hash, true);
     }
     let num_left = get_split_point(num_leaves);
     let side_nodes_left = &side_nodes[..side_nodes.len() - 1]; //@todo doubtful here
