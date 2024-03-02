@@ -2,16 +2,20 @@ package runtime
 
 import (
 	"context"
+	_ "embed"
 	"log"
 
 	"github.com/tetratelabs/wazero"
 	_ "github.com/tetratelabs/wazero/api"
 )
 
+//go:embed blobstream-contracts-rust/target/wasm32-unknown-unknown/release/blobstream_contracts_rust.wasm
+var wasmBytes []byte
+
 func Execute() {
 	// Choose the context to use for function calls.
 	ctxWasm := context.Background()
-	wasmBytes := []byte{}
+
 	// Create a new WebAssembly Runtime.
 	r := wazero.NewRuntime(ctxWasm)
 	defer r.Close(ctxWasm) // This closes everything this Runtime created.

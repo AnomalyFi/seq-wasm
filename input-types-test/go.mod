@@ -1,4 +1,4 @@
-module github.com/AnomalyFi/seq-wasm
+module input-test-go
 
 go 1.21.3
 
