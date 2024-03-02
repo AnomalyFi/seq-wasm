@@ -19,7 +19,8 @@ use alloy_sol_types::{SolType, SolValue};
 
 use input_type::{SDRTRInput, UVSInput, VAInput};
 use signature::is_sig_nil;
-// solidity typ decleration begin ----
+
+// solidity type decleration begin ----
 sol! {
     struct Validator {
         address addr;
@@ -69,6 +70,7 @@ sol! {
 type SolArrayOf<T> = sol! { T[] };
 
 // solidity type decleration ends ----
+
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
@@ -169,7 +171,7 @@ fn check_validator_signatures(
 // }
 
 #[no_mangle]
-pub extern "C" fn update_validator_set(uvs_ptr: *const UVSInput) -> bool {
+pub extern "C" fn update_validator_set(ptr: *const u8, len: u32) -> bool {
     let one = U256::from(1);
 
     let (
@@ -179,7 +181,7 @@ pub extern "C" fn update_validator_set(uvs_ptr: *const UVSInput) -> bool {
         new_validator_set_hash,
         current_validators,
         signatures,
-    ) = UVSInput::new(uvs_ptr).unpack();
+    ) = UVSInput::new(ptr, len).unpack();
     // @todo dummy data
     let current_nonce = one;
     let current_power_threshold = U256::from(3333);
@@ -217,11 +219,11 @@ pub extern "C" fn update_validator_set(uvs_ptr: *const UVSInput) -> bool {
 }
 
 #[no_mangle]
-pub extern "C" fn submit_data_root_tuple_root(sdrtr_ptr: *const SDRTRInput) -> bool {
+pub extern "C" fn submit_data_root_tuple_root(sdrtr_ptr: *const u8, len: u32) -> bool {
     // this shares the same checks as update_validator_set(), only change is update state variables
     let one = U256::from(1);
     let (new_nonce, validator_set_nonce, data_root_tuple_root, current_validators, signatures) =
-        SDRTRInput::new(sdrtr_ptr).unpack();
+        SDRTRInput::new(sdrtr_ptr, len).unpack();
     // @todo dummy data
     let current_nonce = one;
     let current_power_threshold = U256::from(3333);
@@ -254,8 +256,8 @@ pub extern "C" fn submit_data_root_tuple_root(sdrtr_ptr: *const SDRTRInput) -> b
 }
 
 #[no_mangle]
-pub extern "C" fn verify_attestation(va_ptr: *const VAInput) -> bool {
-    let (tuple_root_nonce, tuple, proof) = VAInput::new(va_ptr).unpack();
+pub extern "C" fn verify_attestation(ptr: *const u8, len: u32) -> bool {
+    let (tuple_root_nonce, tuple, proof) = VAInput::new(ptr, len).unpack();
     //@todo dummy data
     let state_event_nonce = U256::from(2);
     let mut state_data_tuple_roots: HashMap<U256, FixedBytes<32>> = HashMap::new();

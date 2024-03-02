@@ -1,38 +1,38 @@
-use super::{BinaryMerkleProof, DataRootTuple, FixedBytes, Layout, Signature, Validator, U256};
-pub struct UVSInput {
-    new_nonce: U256,
-    old_nonce: U256,
-    new_power_threshold: U256,
-    new_validator_set_hash: FixedBytes<32>,
-    current_validators: Vec<Validator>,
-    signatures: Vec<Signature>,
-}
+use core::slice;
 
-pub struct SDRTRInput {
-    new_nonce: U256,
-    validator_set_nonce: U256,
-    data_root_tuple_root: FixedBytes<32>,
-    current_validators: Vec<Validator>,
-    signatures: Vec<Signature>,
-}
+use alloy_sol_types::SolType;
 
-pub struct VAInput {
-    tuple_root_nonce: U256,
-    tuple: DataRootTuple,
-    proof: BinaryMerkleProof,
-}
+use super::{
+    sol, BinaryMerkleProof, DataRootTuple, FixedBytes, Layout, Signature, Validator, U256,
+};
+
+sol!(
+    struct SDRTRInput {
+        uint256 new_nonce;
+        uint256 validator_set_nonce;
+        bytes32 data_root_tuple_root;
+        Validator[] current_validators;
+        Signature[] signatures;
+    }
+    struct UVSInput {
+        uint256 new_nonce;
+        uint256 old_nonce;
+        uint256 new_power_threshold;
+        bytes32 new_validator_set_hash;
+        Validator[] current_validators;
+        Signature[] signatures;
+    }
+    struct VAInput {
+        uint256 tuple_root_nonce;
+        DataRootTuple tuple;
+        BinaryMerkleProof proof;
+    }
+);
 
 impl UVSInput {
-    pub fn new(ptr: *const UVSInput) -> Self {
-        let uvs_input = unsafe { &*ptr };
-        UVSInput {
-            new_nonce: uvs_input.new_nonce,
-            old_nonce: uvs_input.new_nonce,
-            new_power_threshold: uvs_input.new_power_threshold,
-            new_validator_set_hash: uvs_input.new_validator_set_hash,
-            current_validators: uvs_input.current_validators.clone(),
-            signatures: uvs_input.signatures.clone(),
-        }
+    pub fn new(ptr: *const u8, len: u32) -> Self {
+        let sdrtr_input = unsafe { slice::from_raw_parts(ptr, (len as u16).into()) };
+        Self::abi_decode(sdrtr_input, true).unwrap()
     }
     pub fn unpack(
         &self,
@@ -53,23 +53,13 @@ impl UVSInput {
             self.signatures.clone(),
         )
     }
-    fn pack_to() {}
-    fn size_of() {}
-    fn to_bytes() {}
 }
 
 impl SDRTRInput {
-    pub fn new(ptr: *const SDRTRInput) -> Self {
-        let sdrtr_input = unsafe { &*ptr };
-        SDRTRInput {
-            new_nonce: sdrtr_input.new_nonce,
-            validator_set_nonce: sdrtr_input.validator_set_nonce,
-            data_root_tuple_root: sdrtr_input.data_root_tuple_root,
-            current_validators: sdrtr_input.current_validators.clone(),
-            signatures: sdrtr_input.signatures.clone(),
-        }
+    pub fn new(ptr: *const u8, len: u32) -> Self {
+        let sdrtr_input = unsafe { slice::from_raw_parts(ptr, (len as u16).into()) };
+        Self::abi_decode(sdrtr_input, true).unwrap()
     }
-
     pub fn unpack(&self) -> (U256, U256, FixedBytes<32>, Vec<Validator>, Vec<Signature>) {
         (
             self.new_nonce,
@@ -81,13 +71,9 @@ impl SDRTRInput {
     }
 }
 impl VAInput {
-    pub fn new(ptr: *const VAInput) -> Self {
-        let va_input = unsafe { &*ptr };
-        VAInput {
-            tuple_root_nonce: va_input.tuple_root_nonce,
-            tuple: va_input.tuple.clone(),
-            proof: va_input.proof.clone(),
-        }
+    pub fn new(ptr: *const u8, len: u32) -> Self {
+        let sdrtr_input = unsafe { slice::from_raw_parts(ptr, (len as u16).into()) };
+        Self::abi_decode(sdrtr_input, true).unwrap()
     }
     pub fn unpack(&self) -> (U256, DataRootTuple, BinaryMerkleProof) {
         (
