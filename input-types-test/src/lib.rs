@@ -1,11 +1,11 @@
 extern crate alloc;
 extern crate core;
 extern crate wee_alloc;
-pub use std::alloc::{alloc, Layout};
-
 use alloy_primitives::{address, fixed_bytes, U256};
 pub use blobstream_contracts_rust::{allocate, deallocate}; // re-export
-use blobstream_contracts_rust::{input_type::SDRTRInput, Validator};
+use blobstream_contracts_rust::{input_type::SDRTRInput, state::get_bytes, Validator};
+use core::slice;
+pub use std::alloc::{alloc, Layout};
 
 #[no_mangle]
 pub extern "C" fn test_sdrtr_input(ptr: *const u8, len: u32) -> u64 {
@@ -33,6 +33,20 @@ pub extern "C" fn test_sdrtr_input(ptr: *const u8, len: u32) -> u64 {
         return 345;
     }
     1208
+}
+
+#[no_mangle]
+pub extern "C" fn test_get_bytes() -> u64 {
+    unsafe {
+        let ptr_packed = get_bytes(3);
+        let sdrtr_input =
+            slice::from_raw_parts((ptr_packed >> 32) as *mut u8, (ptr_packed as u16).into());
+
+        if sdrtr_input == vec![0 as u8, 2, 3] {
+            return 10;
+        }
+        return 0;
+    };
 }
 
 fn get_dummy_validators_one() -> Vec<Validator> {

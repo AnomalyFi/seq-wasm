@@ -2,9 +2,7 @@ use core::slice;
 
 use alloy_sol_types::SolType;
 
-use super::{
-    sol, BinaryMerkleProof, DataRootTuple, FixedBytes, Layout, Signature, Validator, U256,
-};
+use super::{sol, BinaryMerkleProof, DataRootTuple, FixedBytes, Signature, Validator, U256};
 
 sol!(
     struct SDRTRInput {

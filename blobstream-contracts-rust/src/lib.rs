@@ -6,6 +6,7 @@ extern crate wee_alloc;
 pub mod binary_merkle_tree;
 pub mod input_type;
 pub mod signature;
+pub mod state;
 
 // static allocator
 use alloc::vec::Vec;
@@ -159,16 +160,9 @@ fn check_validator_signatures(
     true
 }
 
-//@todo if representation of the sol! generated structs are not FFI safe, then abi pack & write to memory and abi decode to indidvidual structs.
-// #[no_mangle]
-// pub unsafe extern "C" fn update_validator_set(new_nonce: U256, validator_set_nonce: U256, data_root_tuple_nonce_ptr: *const B32,validator_ptr: *const Vec<Validator>, signature_ptr: *const Vec<Signature>) -> bool{
-//     // to enable support for any contrat format we should follow a generic way of giving only a pointer -> and unpacking rest of the data using that pointer. -> need to be more careful with custom implementation made with runtime side & rust-contract interface side, to make it more generic
-//     let validators = unsafe { &*validator_ptr };
-//     let signatures = unsafe { &*signature_ptr};
-//     let data_root_tuple_nonce = unsafe { &*data_root_tuple_nonce_ptr};
-//     SolArrayOf::<Validator>::abi_encode(validators);
-//     true
-// }
+//@todo how do we do the initializer?
+#[no_mangle]
+pub extern "C" fn initializer() {}
 
 #[no_mangle]
 pub extern "C" fn update_validator_set(ptr: *const u8, len: u32) -> bool {

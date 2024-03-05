@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/tetratelabs/wazero"
+	"github.com/tetratelabs/wazero/api"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -98,11 +99,18 @@ var MainABI, _ = MainMetaData.GetAbi() // modified
 var wasmByte []byte
 
 func main() {
+	var allocate_ptr api.Function
 	ctxWasm := context.Background()
 	r := wazero.NewRuntime(ctxWasm)
 	defer r.Close(ctxWasm)
 
-	_, err := r.NewHostModuleBuilder("env").Instantiate(ctxWasm)
+	stateGetBytesInner := func(ctxInner context.Context, m api.Module, i uint32) uint64 {
+		bytesa := []byte{0, 2, 3}
+		results, _ := allocate_ptr.Call(ctxInner, uint64(len(bytesa)))
+		m.Memory().Write(uint32(results[0]), bytesa)
+		return uint64(results[0])<<32 | uint64(len(bytesa))
+	}
+	_, err := r.NewHostModuleBuilder("env").NewFunctionBuilder().WithFunc(stateGetBytesInner).Export("stateGetBytes").Instantiate(ctxWasm)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -113,9 +121,9 @@ func main() {
 		fmt.Println(err)
 		os.Exit(2)
 	}
-	allocate_ptr := mod.ExportedFunction("allocate_ptr")
+	allocate_ptr = mod.ExportedFunction("allocate_ptr")
 	deallocate_ptr := mod.ExportedFunction("deallocate_ptr")
-	stdrtr := mod.ExportedFunction("test_sdrtr_input")
+	stdrtr := mod.ExportedFunction("test_get_bytes")
 
 	sdrtri := SubmitDataRootTupleRootInput{
 		NewNonce:            big.NewInt(30),
@@ -129,7 +137,7 @@ func main() {
 	if err != nil {
 		fmt.Print(err)
 	}
-	packed2 := packed[4:]
+	packed2 := packed[4:] //@todo deal with this, either trim off when sent using relayer or trim of here
 	results, err := allocate_ptr.Call(ctxWasm, uint64(len(packed2)))
 	if err != nil {
 		fmt.Println(err)
@@ -139,10 +147,10 @@ func main() {
 
 	defer deallocate_ptr.Call(ctxWasm, inputPtr, uint64(len(packed2)))
 	mod.Memory().Write(uint32(inputPtr), packed2) // TODO: change
-	results, err = stdrtr.Call(ctxWasm, inputPtr, uint64(len(packed2)))
+	results, err = stdrtr.Call(ctxWasm /*, inputPtr, uint64(len(packed2))*/)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(4)
 	}
-	fmt.Println(results[0] == 1208)
+	fmt.Println(results[0] == 10)
 }
