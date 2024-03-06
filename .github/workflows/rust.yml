@@ -17,6 +17,8 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build
+      run: cd ./blobstream-contracts-rust
       run: cargo build --verbose
     - name: Run tests
+      run: cd ./blobstream-contracts-rust
       run: cargo test --verbose

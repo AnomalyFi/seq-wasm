@@ -25,12 +25,17 @@ sol!(
         DataRootTuple tuple;
         BinaryMerkleProof proof;
     }
+    struct InitializerInput {
+        uint256 nonce;
+        uint256 power_threshold;
+        bytes32 validator_set_check_point;
+    }
 );
 
 impl UVSInput {
     pub fn new(ptr: *const u8, len: u32) -> Self {
-        let sdrtr_input = unsafe { slice::from_raw_parts(ptr, (len as u16).into()) };
-        Self::abi_decode(sdrtr_input, true).unwrap()
+        let uvs_input = unsafe { slice::from_raw_parts(ptr, (len as u16).into()) };
+        Self::abi_decode(uvs_input, true).unwrap()
     }
     pub fn unpack(
         &self,
@@ -70,14 +75,27 @@ impl SDRTRInput {
 }
 impl VAInput {
     pub fn new(ptr: *const u8, len: u32) -> Self {
-        let sdrtr_input = unsafe { slice::from_raw_parts(ptr, (len as u16).into()) };
-        Self::abi_decode(sdrtr_input, true).unwrap()
+        let va_input = unsafe { slice::from_raw_parts(ptr, (len as u16).into()) };
+        Self::abi_decode(va_input, true).unwrap()
     }
     pub fn unpack(&self) -> (U256, DataRootTuple, BinaryMerkleProof) {
         (
             self.tuple_root_nonce,
             self.tuple.clone(),
             self.proof.clone(),
+        )
+    }
+}
+impl InitializerInput {
+    pub fn new(ptr: *const u8, len: u32) -> Self {
+        let init_input = unsafe { slice::from_raw_parts(ptr, (len as u16).into()) };
+        Self::abi_decode(init_input, true).unwrap()
+    }
+    pub fn unpack(&self) -> (U256, U256, FixedBytes<32>) {
+        (
+            self.nonce,
+            self.power_threshold,
+            self.validator_set_check_point,
         )
     }
 }
