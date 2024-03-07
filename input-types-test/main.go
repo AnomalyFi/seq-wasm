@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"os"
 	"strconv"
@@ -102,10 +103,8 @@ var MainMetaData = &bind.MetaData{
 // Deprecated: Use MainMetaData.ABI instead.
 var MainABI, _ = MainMetaData.GetAbi() // modified
 
-//go:embed blobstream_contracts_rust.wasm
-var wasmByte []byte
-
 func main() {
+	wasmByte, _ := ioutil.ReadFile("/home/manojkgorle/nodekit/seq-wasm/blobstream-contracts-rust/target/wasm32-unknown-unknown/release/blobstream_contracts_rust.wasm")
 	var allocate_ptr api.Function
 	ctxWasm := context.Background()
 	r := wazero.NewRuntime(ctxWasm)
@@ -218,11 +217,12 @@ func main() {
 		os.Exit(3)
 	}
 	inputPtr = results[0]
-
+	defer deallocate_ptr.Call(ctxWasm, inputPtr, uint64(len(packed2)))
+	mod.Memory().Write(uint32(inputPtr), packed2) // TODO: change
 	results, err = sdrt_function.Call(ctxWasm, inputPtr, uint64(len(packed2)))
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(4)
 	}
-	fmt.Println(results)
+	fmt.Println(mapper)
 }

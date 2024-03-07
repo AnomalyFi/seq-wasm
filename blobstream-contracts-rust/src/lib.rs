@@ -183,7 +183,7 @@ pub extern "C" fn initializer(ptr: *const u8, len: u32) -> bool {
 }
 
 #[no_mangle]
-pub extern "C" fn update_validator_set(ptr: *const u8, len: u32) -> bool {
+pub extern "C" fn update_validator_set(ptr: *const u8, len: u32) -> u64 {
     let one = U256::from(1);
 
     let (
@@ -200,10 +200,10 @@ pub extern "C" fn update_validator_set(ptr: *const u8, len: u32) -> bool {
     let last_validator_set_check_point =
         state::get_bytes32(STATIC_STATE_LASTVALIDATORSETCHECKPOINT);
     if new_nonce != current_nonce + one {
-        return false;
+        return 10;
     }
     if current_validators.len() != signatures.len() {
-        return false;
+        return 11;
     }
     let current_validator_set_hash = compute_validator_set_hash(&current_validators);
 
@@ -213,7 +213,7 @@ pub extern "C" fn update_validator_set(ptr: *const u8, len: u32) -> bool {
         current_validator_set_hash,
     ) != last_validator_set_check_point
     {
-        return false;
+        return 12;
     }
     let new_check_point =
         domain_seperator_validator_set_hash(new_nonce, new_power_threshold, new_validator_set_hash);
@@ -224,17 +224,17 @@ pub extern "C" fn update_validator_set(ptr: *const u8, len: u32) -> bool {
         current_power_threshold,
     );
     if status != true {
-        return false;
+        return 13;
     }
 
     state::store_bytes32(STATIC_STATE_LASTVALIDATORSETCHECKPOINT, new_check_point);
     state::store_u256(STATIC_STATE_POWERTHRESHOLD, new_power_threshold);
     state::store_u256(STATIC_STATE_EVENTNONCE, new_nonce);
-    true
+    1
 }
 
 #[no_mangle]
-pub extern "C" fn submit_data_root_tuple_root(sdrtr_ptr: *const u8, len: u32) -> bool {
+pub extern "C" fn submit_data_root_tuple_root(sdrtr_ptr: *const u8, len: u32) -> u64 {
     // this shares the same checks as update_validator_set(), only change is update state variables
     let one = U256::from(1);
     let (new_nonce, validator_set_nonce, data_root_tuple_root, current_validators, signatures) =
@@ -245,10 +245,10 @@ pub extern "C" fn submit_data_root_tuple_root(sdrtr_ptr: *const u8, len: u32) ->
     let last_validator_set_check_point =
         state::get_bytes32(STATIC_STATE_LASTVALIDATORSETCHECKPOINT);
     if new_nonce != current_nonce + one {
-        return false;
+        return 10;
     }
     if current_validators.len() != signatures.len() {
-        return false;
+        return 11;
     }
     let current_validator_set_hash = compute_validator_set_hash(&current_validators);
 
@@ -258,13 +258,13 @@ pub extern "C" fn submit_data_root_tuple_root(sdrtr_ptr: *const u8, len: u32) ->
         current_validator_set_hash,
     ) != last_validator_set_check_point
     {
-        return false;
+        return 12;
     }
     let c = domain_seperator_data_root_tuple_root(new_nonce, data_root_tuple_root);
     let status =
         check_validator_signatures(current_validators, signatures, c, current_power_threshold);
     if status != true {
-        return false;
+        return 13;
     }
 
     state::store_u256(STATIC_STATE_EVENTNONCE, new_nonce);
@@ -273,7 +273,7 @@ pub extern "C" fn submit_data_root_tuple_root(sdrtr_ptr: *const u8, len: u32) ->
         new_nonce,
         data_root_tuple_root,
     );
-    true
+    1
 }
 
 #[no_mangle]
