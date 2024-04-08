@@ -244,6 +244,10 @@ pub extern "C" fn submit_data_root_tuple_root(sdrtr_ptr: *const u8, len: u32) ->
     let current_power_threshold = state::get_u256(STATIC_STATE_POWERTHRESHOLD);
     let last_validator_set_check_point =
         state::get_bytes32(STATIC_STATE_LASTVALIDATORSETCHECKPOINT);
+    // let current_nonce = U256::from(2);
+    // let current_power_threshold = U256::from(3333);
+    // let last_validator_set_check_point =
+    //     fixed_bytes!("4a5cc92ce4a0fb368c83da44ea489e4b908ce75bdc460c31c662f35fd3911ff1");
     if new_nonce != current_nonce + one {
         return 10;
     }

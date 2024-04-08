@@ -224,5 +224,5 @@ func main() {
 		fmt.Println(err)
 		os.Exit(4)
 	}
-	fmt.Println(mapper)
+	fmt.Println([]byte{byte(results[0])})
 }
