@@ -1,26 +1,6 @@
 use crate::{BinaryMerkleProof, LeafDigestPacker, NodeDigestPacker};
-use alloy_primitives::{hex::FromHex, Bytes, FixedBytes, U256};
-use alloy_sol_types::SolValue;
+use crate::{Bytes, FixedBytes, FromHex, SolValue, U256};
 use sha2::Digest;
-
-// verify:
-//      - path_length_from_key
-//      - leaf_digest
-//      - compute_root_hash
-
-// leaf_digest:
-//      - sha256 -> evm's implementation
-
-// path_length_from_key:
-//      - get_starting_bit
-
-// compute_root_hash:
-//      - get_split_point
-//      - slice
-//      - node_digest
-
-// get_split_point:
-//      - bits_len
 
 pub fn verify(root: FixedBytes<32>, proof: BinaryMerkleProof, data: Bytes) -> bool {
     let one = U256::from(1);

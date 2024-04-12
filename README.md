@@ -1,5 +1,24 @@
 # SEQ-WASM Framework
 
+Branch X is the implementation of [BlobstreamX](https://github.com/succinctlabs/blobstreamx/tree/main/contracts/src/BlobstreamX.sol)
+
+- Implementation of BlobstreamX over SEQ involves adding a syscall/precompile to wasm runtime to verify the gnark proof.
+
+- Block header transition check(trusted block -> new block) should be satisfied and implemented properly, so arbitary proofs are not submitted.
+
+- Fall backs for fund dispersion needs to be implemented.
+
+- Necessary design decisions will be either explained here or in the relayer(to be built[this realys the proof automatically]) or in add-wasm branch of nodekit-seq.
+
+TODO:
+- [ ] Remove redundent code.
+- [ ] Raw blobstream x translation with modifications to contain gateway functionality in itself.
+    - We essentially need commitNextHeader, commitHeaderRange and verify attestation.
+    - Change intializer implementation.
+    - implement lock functionality.
+    - state variables change.
+- [ ] Add precompile in wasm runtime. 
+- [ ] Add tests 
 Stateful Wasm contract support for SEQ
 
 Every rust contract should implement this:

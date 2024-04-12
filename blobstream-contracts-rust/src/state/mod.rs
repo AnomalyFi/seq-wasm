@@ -1,4 +1,5 @@
-use super::{slice, FixedBytes, SolValue, U256};
+use crate::{slice, FixedBytes, SolValue, U256};
+
 #[link(wasm_import_module = "env")]
 extern "C" {
     #[link_name = "stateStoreBytes"]
@@ -55,8 +56,7 @@ pub fn store_mapping_u256_bytes32(offset: u32, key: U256, value: FixedBytes<32>)
     }
     let value_bytes = value.abi_encode();
     unsafe {
-        let pseudo_key = (key % U256::from(896)).as_limbs()[0]; // ofload this to runtime?? @todo
-
+        let pseudo_key = (key % U256::from(896)).as_limbs()[0]; // offload this to runtime?? @todo
         store_dynamic_bytes(
             offset,
             pseudo_key as u32,

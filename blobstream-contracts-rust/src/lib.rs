@@ -5,34 +5,24 @@ extern crate wee_alloc;
 
 pub mod binary_merkle_tree;
 pub mod input_type;
-pub mod signature;
 pub mod state;
 
 // static allocator
 use alloc::vec::Vec;
-// standard library
-pub use alloy_primitives::{fixed_bytes, hex::FromHex, keccak256, FixedBytes, B256, U256};
+
+// alloy imports
+pub use alloy_primitives::{fixed_bytes, hex::FromHex, keccak256, Bytes, FixedBytes, B256, U256};
 use alloy_sol_macro::sol;
 use alloy_sol_types::{SolType, SolValue};
-use core::slice;
 
+// std lib
+use core::slice;
+use input_type::{InitializerInput, VAInput};
 pub use std::alloc::{alloc, Layout};
 use std::mem::MaybeUninit;
 
-use input_type::{InitializerInput, SDRTRInput, UVSInput, VAInput};
-use signature::is_sig_nil;
-
 // solidity type decleration begin ----
 sol! {
-    struct Validator {
-        address addr;
-        uint256 power;
-    }
-    struct Signature {
-        uint8 v;
-        bytes32 r;
-        bytes32 s;
-    }
     struct DataRootTuple{
         uint256 height;
         bytes32 dataRoot;
@@ -41,22 +31,6 @@ sol! {
         bytes32[] sideNodes;
         uint256 key;
         uint256 numLeaves;
-    }
-    struct PackerDomainSeperatorValidator{
-        bytes32 VALIDATOR_SET_HASH_DOMAIN_SEPARATOR;
-        uint256 nonce;
-        uint256 powerThreshold;
-        bytes32 validatorSetHash;
-    }
-    struct PackerDomainSeperatorDataRootTuple{
-        bytes32 DATA_ROOT_TUPLE_ROOT_DOMAIN_SEPERATOR;
-        uint256 nonce;
-        bytes32 dataRootTupleRoot;
-    }
-    struct PackerEthSignedMessage{
-        string EIP191_SIGNED_MESSAGE;
-        string len;
-        bytes hash;
     }
     struct LeafDigestPacker{
         bytes1 leaf_prefix;
@@ -69,7 +43,7 @@ sol! {
     }
 }
 
-type SolArrayOf<T> = sol! { T[] };
+// type SolArrayOf<T> = sol! { T[] };
 
 // solidity type decleration ends ----
 
@@ -95,82 +69,17 @@ pub unsafe extern "C" fn deallocate(ptr: *mut u8, size: usize) {
 }
 
 // state variables enum
+//@todo state variables will change.
 const STATIC_STATE_LASTVALIDATORSETCHECKPOINT: u32 = 0;
 const STATIC_STATE_POWERTHRESHOLD: u32 = 1;
 const STATIC_STATE_EVENTNONCE: u32 = 2;
 
 const DYNAMIC_STATE_DATAROOTTUPLEROOTS: u32 = 2;
 
-fn compute_validator_set_hash(validator: &Vec<Validator>) -> FixedBytes<32> {
-    let tokenized_validator = SolArrayOf::<Validator>::abi_encode(validator);
-    keccak256(tokenized_validator)
-}
-
-fn domain_seperator_validator_set_hash(
-    nonce: U256,
-    power_threshold: U256,
-    validator_set_hash: FixedBytes<32>,
-) -> FixedBytes<32> {
-    // let validator_set_hash_domain_seperator = U256::from_str("checkpoint").unwrap().into();
-    let validator_set_hash_domain_seperator =
-        B256::from_hex("636865636b706f696e7400000000000000000000000000000000000000000000").unwrap();
-    let abi_packed = PackerDomainSeperatorValidator {
-        VALIDATOR_SET_HASH_DOMAIN_SEPARATOR: validator_set_hash_domain_seperator,
-        nonce: nonce,
-        powerThreshold: power_threshold,
-        validatorSetHash: validator_set_hash,
-    }
-    .abi_encode();
-    keccak256(abi_packed)
-}
-
-fn domain_seperator_data_root_tuple_root(
-    nonce: U256,
-    data_root_tuple_root: FixedBytes<32>,
-) -> FixedBytes<32> {
-    let data_root_tuple_root_domain_seperator =
-        B256::from_hex("7472616e73616374696f6e426174636800000000000000000000000000000000").unwrap();
-    let abi_packed = PackerDomainSeperatorDataRootTuple {
-        DATA_ROOT_TUPLE_ROOT_DOMAIN_SEPERATOR: data_root_tuple_root_domain_seperator,
-        nonce: nonce,
-        dataRootTupleRoot: data_root_tuple_root,
-    }
-    .abi_encode();
-
-    keccak256(abi_packed)
-}
-
-//@todo does nil_sig signature necessary for us? -> a little optimisation. how about verifying every signature and incrementing cumulative power only for valid signatures.
-fn check_validator_signatures(
-    current_validators: Vec<Validator>,
-    signatures: Vec<Signature>,
-    digest: FixedBytes<32>,
-    power_threshold: U256,
-) -> bool {
-    let mut cumulative_power = U256::from(0);
-    for i in 0..current_validators.len() {
-        if is_sig_nil(&signatures[i]) {
-            continue;
-        }
-
-        if !signature::verify_sig(current_validators[i].addr, digest.into(), &signatures[i]) {
-            continue; // TODO: should revert? -> no if cum_power < powr_threshold, return false
-        }
-        cumulative_power += current_validators[i].power;
-
-        if cumulative_power >= power_threshold {
-            break;
-        }
-    }
-    if cumulative_power < power_threshold {
-        return false;
-    }
-    true
-}
-
 //@todo how do we do the initializer?
 #[no_mangle]
 pub extern "C" fn initializer(ptr: *const u8, len: u32) -> bool {
+    //@todo need to change intializer implementation
     let (nonce, power_threshold, validator_set_check_point) =
         InitializerInput::new(ptr, len).unpack();
     state::store_u256(STATIC_STATE_EVENTNONCE, nonce);
@@ -183,114 +92,10 @@ pub extern "C" fn initializer(ptr: *const u8, len: u32) -> bool {
 }
 
 #[no_mangle]
-pub extern "C" fn update_validator_set(ptr: *const u8, len: u32) -> u64 {
-    let one = U256::from(1);
-
-    let (
-        new_nonce,
-        old_nonce,
-        new_power_threshold,
-        new_validator_set_hash,
-        current_validators,
-        signatures,
-    ) = UVSInput::new(ptr, len).unpack();
-
-    let current_nonce = state::get_u256(STATIC_STATE_EVENTNONCE);
-    let current_power_threshold = state::get_u256(STATIC_STATE_POWERTHRESHOLD);
-    let last_validator_set_check_point =
-        state::get_bytes32(STATIC_STATE_LASTVALIDATORSETCHECKPOINT);
-    if new_nonce != current_nonce + one {
-        return 10;
-    }
-    if current_validators.len() != signatures.len() {
-        return 11;
-    }
-    let current_validator_set_hash = compute_validator_set_hash(&current_validators);
-
-    if domain_seperator_validator_set_hash(
-        old_nonce,
-        current_power_threshold,
-        current_validator_set_hash,
-    ) != last_validator_set_check_point
-    {
-        return 12;
-    }
-    let new_check_point =
-        domain_seperator_validator_set_hash(new_nonce, new_power_threshold, new_validator_set_hash);
-    let status = check_validator_signatures(
-        current_validators,
-        signatures,
-        new_check_point,
-        current_power_threshold,
-    );
-    if status != true {
-        return 13;
-    }
-
-    state::store_bytes32(STATIC_STATE_LASTVALIDATORSETCHECKPOINT, new_check_point);
-    state::store_u256(STATIC_STATE_POWERTHRESHOLD, new_power_threshold);
-    state::store_u256(STATIC_STATE_EVENTNONCE, new_nonce);
-    1
-}
-
-#[no_mangle]
-pub extern "C" fn submit_data_root_tuple_root(sdrtr_ptr: *const u8, len: u32) -> u64 {
-    // this shares the same checks as update_validator_set(), only change is update state variables
-    let one = U256::from(1);
-    let (new_nonce, validator_set_nonce, data_root_tuple_root, current_validators, signatures) =
-        SDRTRInput::new(sdrtr_ptr, len).unpack();
-
-    let current_nonce = state::get_u256(STATIC_STATE_EVENTNONCE);
-    let current_power_threshold = state::get_u256(STATIC_STATE_POWERTHRESHOLD);
-    let last_validator_set_check_point =
-        state::get_bytes32(STATIC_STATE_LASTVALIDATORSETCHECKPOINT);
-    // let current_nonce = U256::from(2);
-    // let current_power_threshold = U256::from(3333);
-    // let last_validator_set_check_point =
-    //     fixed_bytes!("4a5cc92ce4a0fb368c83da44ea489e4b908ce75bdc460c31c662f35fd3911ff1");
-    if new_nonce != current_nonce + one {
-        return 10;
-    }
-    if current_validators.len() != signatures.len() {
-        return 11;
-    }
-    let current_validator_set_hash = compute_validator_set_hash(&current_validators);
-
-    if domain_seperator_validator_set_hash(
-        validator_set_nonce,
-        current_power_threshold,
-        current_validator_set_hash,
-    ) != last_validator_set_check_point
-    {
-        return 12;
-    }
-    let c = domain_seperator_data_root_tuple_root(new_nonce, data_root_tuple_root);
-    let status =
-        check_validator_signatures(current_validators, signatures, c, current_power_threshold);
-    if status != true {
-        return 13;
-    }
-
-    state::store_u256(STATIC_STATE_EVENTNONCE, new_nonce);
-    state::store_mapping_u256_bytes32(
-        DYNAMIC_STATE_DATAROOTTUPLEROOTS,
-        new_nonce,
-        data_root_tuple_root,
-    );
-    1
-}
-
-#[no_mangle]
 pub extern "C" fn verify_attestation(ptr: *const u8, len: u32) -> bool {
     let (tuple_root_nonce, tuple, proof) = VAInput::new(ptr, len).unpack();
 
     let state_event_nonce = state::get_u256(STATIC_STATE_EVENTNONCE);
-    // let mut state_data_tuple_roots: HashMap<U256, FixedBytes<32>> = HashMap::new();
-    // state_data_tuple_roots.insert(
-    //     tuple_root_nonce,
-    //     fixed_bytes!("82dc1607d84557d3579ce602a45f5872e821c36dbda7ec926dfa17ebc8d5c013"),
-    // );
-
     if tuple_root_nonce > state_event_nonce {
         return false;
     }
