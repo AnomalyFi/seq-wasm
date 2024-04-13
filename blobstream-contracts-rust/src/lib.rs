@@ -11,13 +11,17 @@ pub mod state;
 use alloc::vec::Vec;
 
 // alloy imports
-pub use alloy_primitives::{fixed_bytes, hex::FromHex, keccak256, Bytes, FixedBytes, B256, U256};
+pub use alloy_primitives::{
+    fixed_bytes, hex::FromHex, keccak256, Bytes, FixedBytes, Uint, B256, U256, U64,
+};
 use alloy_sol_macro::sol;
 use alloy_sol_types::{SolType, SolValue};
 
+use input_type::{CommitHeaderRangeInput, InitializerInput, OutputBreaker, VAInput};
+use state::gnark_verify;
+
 // std lib
 use core::slice;
-use input_type::{InitializerInput, VAInput};
 pub use std::alloc::{alloc, Layout};
 use std::mem::MaybeUninit;
 
@@ -42,9 +46,6 @@ sol! {
         bytes32 right;
     }
 }
-
-// type SolArrayOf<T> = sol! { T[] };
-
 // solidity type decleration ends ----
 
 #[global_allocator]
@@ -67,43 +68,117 @@ pub extern "C" fn allocate(size: usize) -> *mut u8 {
 pub unsafe extern "C" fn deallocate(ptr: *mut u8, size: usize) {
     let _ = Vec::from_raw_parts(ptr, 0, size);
 }
+//@todo implement the actor functionality here?? to restrict who can do certain funcitons
 
-// state variables enum
+// state variables enum, get from programvm??
 //@todo state variables will change.
-const STATIC_STATE_LASTVALIDATORSETCHECKPOINT: u32 = 0;
-const STATIC_STATE_POWERTHRESHOLD: u32 = 1;
-const STATIC_STATE_EVENTNONCE: u32 = 2;
+const STATIC_LATESTBLOCK: u32 = 1;
+const STATIC_STATE_PROOFNONCE: u32 = 2;
+const STATIC_FROZEN: u32 = 3;
+//@todo is it necessary to have headerRangeFunctionId and nextHeaderFunctionId implemented as state variables here??
 
-const DYNAMIC_STATE_DATAROOTTUPLEROOTS: u32 = 2;
+//@todo play with dynamic state variables allocation
+// the below represnted values act as an offset. we need to make sure collisions will not happen
+const DYNAMIC_BLOCK_HEIGHT_TO_HEADER_HASH: u32 = 2; // tune in with this
+const DYNAMIC_STATE_DATA_COMMITMENTS: u32 = 3;
 
+// CONSTANT VARIABLES
+const DATA_COMMITMENT_MAX: u64 = 10_000;
 //@todo how do we do the initializer?
 #[no_mangle]
 pub extern "C" fn initializer(ptr: *const u8, len: u32) -> bool {
     //@todo need to change intializer implementation
-    let (nonce, power_threshold, validator_set_check_point) =
-        InitializerInput::new(ptr, len).unpack();
-    state::store_u256(STATIC_STATE_EVENTNONCE, nonce);
-    state::store_u256(STATIC_STATE_POWERTHRESHOLD, power_threshold);
-    state::store_bytes32(
-        STATIC_STATE_LASTVALIDATORSETCHECKPOINT,
-        validator_set_check_point,
-    );
+    let (height, header) = InitializerInput::new(ptr, len).unpack();
+    state::store_u64(STATIC_LATESTBLOCK, height);
+    state::store_mapping_u64_bytes32(DYNAMIC_BLOCK_HEIGHT_TO_HEADER_HASH, height, header);
+
+    state::store_u256(STATIC_STATE_PROOFNONCE, U256::from(1));
+    true //@todo make as a fallback
+}
+
+#[no_mangle] //@todo this needs to be implemented as a struct
+pub extern "C" fn update_freeze(freeze: u32) -> bool {
+    //@todo this function only needs actor
+    //@todo switch to state variable model
+    state::store_bool(STATIC_FROZEN, freeze);
     true
 }
 
-#[no_mangle]
-pub extern "C" fn verify_attestation(ptr: *const u8, len: u32) -> bool {
-    let (tuple_root_nonce, tuple, proof) = VAInput::new(ptr, len).unpack();
+//@todo implement update genesis state function??
 
-    let state_event_nonce = state::get_u256(STATIC_STATE_EVENTNONCE);
-    if tuple_root_nonce > state_event_nonce {
+#[no_mangle]
+pub unsafe extern "C" fn commit_header_range(ptr: *const u8, len: u32) -> bool {
+    if is_frozen() {
         return false;
     }
-    let root = /*state_data_tuple_roots[&tuple_root_nonce];*/ state::get_mapping_u256_bytes32(DYNAMIC_STATE_DATAROOTTUPLEROOTS, tuple_root_nonce);
+    let (target_block, input, output, proof) = CommitHeaderRangeInput::new(ptr, len).unpack();
+    let trusted_block = state::get_u64(STATIC_LATESTBLOCK);
+    let trusted_header =
+        state::get_mapping_u64_bytes32(DYNAMIC_BLOCK_HEIGHT_TO_HEADER_HASH, trusted_block);
+    let proof_nonce = state::get_u256(STATIC_STATE_PROOFNONCE);
+    if trusted_header == FixedBytes::<32>::new([0; 32]) {
+        return false;
+    }
+    // more info about groth16_verify precompile can be found in state module.
+    if gnark_verify(trusted_block) == 1 {
+        // valid proof
+        let (target_header, data_commitment) = OutputBreaker::decode(&output);
+        if target_block <= trusted_block || target_block - trusted_block > DATA_COMMITMENT_MAX {
+            return false;
+        }
+        state::store_mapping_u64_bytes32(
+            DYNAMIC_BLOCK_HEIGHT_TO_HEADER_HASH,
+            target_block,
+            target_header,
+        );
+        state::store_mapping_u256_bytes32(
+            DYNAMIC_STATE_DATA_COMMITMENTS,
+            proof_nonce,
+            data_commitment,
+        );
+        state::store_u256(STATIC_STATE_PROOFNONCE, proof_nonce + U256::from(1));
+        state::store_u64(STATIC_LATESTBLOCK, target_block);
+        true
+    } else {
+        // invalid proof
+        false
+    }
+}
+
+// #[no_mangle] @todo do we need this??
+// pub extern "C" fn commit_next_header(ptr: *const u8, len: u32) -> bool {
+//     if is_frozen() {
+//         return false;
+//     }
+
+//     true
+// }
+
+/// Verify the attestation for the given proof nonce, tuple, and proof. This is taken from
+/// the existing Blobstream contract and is used to verify the data hash for a specific block
+/// against a posted data commitment.
+#[no_mangle]
+pub extern "C" fn verify_attestation(ptr: *const u8, len: u32) -> bool {
+    if is_frozen() {
+        return false;
+    }
+
+    let (proof_nonce, tuple, proof) = VAInput::new(ptr, len).unpack();
+
+    let state_proof_nonce = state::get_u256(STATIC_STATE_PROOFNONCE);
+    if proof_nonce > state_proof_nonce {
+        return false;
+    }
+    let root = state::get_mapping_u256_bytes32(DYNAMIC_STATE_DATA_COMMITMENTS, proof_nonce);
     let is_valid_proof = binary_merkle_tree::verify(root, proof, tuple.abi_encode().into());
 
     is_valid_proof
 }
 
-//@todo alloy-primitives got many useful macros
-//@todo https://docs.rs/alloy-sol-macro/0.6.3/alloy_sol_macro/macro.sol.html#functions-and-errors -> function layout implementations for us. simple abi packed struct for usage & a wrapper around this?
+fn is_frozen() -> bool {
+    if state::get_bool(STATIC_FROZEN) == 1 {
+        true
+    } else {
+        false
+    }
+}
