@@ -166,6 +166,7 @@ func main() {
 	}
 	gnarkVer := func(ctxInner context.Context, m api.Module, trustedBlock uint64) uint32 {
 		vkFile, err := os.Open("/vk.bin")
+		// we need to do abi decode, here @todo
 		if err != nil {
 			fmt.Printf("failed to open vk file: %s", err)
 			return 0

@@ -1,4 +1,4 @@
-use crate::{slice, FixedBytes, SolValue, U256};
+use crate::{slice, FixedBytes, SolValue, HEADER_RANGE_FUNCTION_ID, U256};
 
 #[link(wasm_import_module = "env")]
 extern "C" {
@@ -14,7 +14,20 @@ extern "C" {
     /// Returns 1 if the proof is valid, 0 otherwise
     /// trusted_block is input. The input of the caller function will be decoded to find input, output, proof
     #[link_name = "gnarkVerify"]
-    pub fn gnark_verify(trusted_block: u64) -> u32;
+    pub fn gnark_verify_inner(trusted_block: u64, ptr: u32, size: u32) -> u32;
+}
+
+pub unsafe fn gnark_verify(trusted_block: u64) -> bool {
+    let valid = gnark_verify_inner(
+        trusted_block,
+        HEADER_RANGE_FUNCTION_ID.as_ptr() as u32,
+        HEADER_RANGE_FUNCTION_ID.len() as u32,
+    );
+    if valid == 1 {
+        true
+    } else {
+        false
+    }
 }
 
 pub fn store_u256(variable: u32, value: U256) {
@@ -74,6 +87,19 @@ pub fn get_bytes32(variable: u32) -> FixedBytes<32> {
     }
 }
 
+pub fn store_vec(variable: u32, data: &[u8]) {
+    unsafe {
+        store_bytes(variable, data.as_ptr() as u32, data.len() as u32);
+    }
+}
+
+pub fn get_vec(variable: u32) -> Vec<u8> {
+    unsafe {
+        let ptr_packed = get_bytes(variable);
+        let data = slice::from_raw_parts((ptr_packed >> 32) as *mut u8, (ptr_packed as u16).into());
+        data.to_vec()
+    }
+}
 pub fn store_bool(variable: u32, value: u32) {
     let value_bytes = if value == 0 {
         0_u32.to_be_bytes()
@@ -157,6 +183,7 @@ pub fn get_mapping_u64_bytes32(offset: u32, key: u64) -> FixedBytes<32> {
         FixedBytes::from_slice(data)
     }
 }
+
 // use enums for state variables & provide enough abstraction
 
 // Storage layout:

@@ -10,20 +10,28 @@ Branch X is the implementation of [BlobstreamX](https://github.com/succinctlabs/
 
 - Necessary design decisions will be either explained here or in the relayer(to be built[this realys the proof automatically]) or in add-wasm branch of nodekit-seq.
 
+- Next header is not implemented in the SEQ version of Blobstream X.
+
 TODO:
 - [x] Remove redundent code.
-- [ ] Raw blobstream x translation with modifications to contain gateway functionality in itself.
+- [x] Raw blobstream x translation with modifications to contain gateway functionality in itself.
     - We essentially need commitNextHeader, commitHeaderRange and verify attestation.
     - Change intializer implementation.
     - implement lock functionality.
     - state variables change.
-- [ ] Add precompile in wasm runtime. 
+- [x] Add precompile in wasm runtime. 
 - [ ] Add tests. 
 - [ ] Fallback mechanisms acting as post-execution hooks in wasm runtime. Ex: disburse fee after valid attesatation, call status fallback -> success or failure. may be something similar to events.
 
 - [ ] Possibly state revamp into more dyanmic generations.
 - [ ] Use macros for public functions and state variables.
 - [ ] Switch to JSON types.??
+
+- [ ] Call initializer during contract deployment.
+- [x] Don't allow initializer to be called after contract deployment.
+- [x] Don't allow functions to execute if initializer is not called.
+- [x] implement onlyOwner modifier functionality.
+- [x] Add header range funciton id.
 Stateful Wasm contract support for SEQ
 
 Every rust contract should implement this:

@@ -8,7 +8,7 @@ sol!(
         BinaryMerkleProof proof;
     }
     struct InitializerInput {
-        uint64 height;
+        uint64  height;
         bytes32 header;
     }
     struct CommitHeaderRangeInput {
@@ -25,7 +25,6 @@ sol!(
         bytes32 dataCommitment;
     }
 );
-//@todo impl for commit header range input & update freeze input
 
 impl VAInput {
     pub fn new(ptr: *const u8, len: u32) -> Self {
@@ -69,6 +68,16 @@ impl OutputBreaker {
     pub fn decode(data: &[u8]) -> (FixedBytes<32>, FixedBytes<32>) {
         let ob = Self::abi_decode(data, true).unwrap();
         (ob.targetHeader, ob.dataCommitment)
+    }
+}
+
+impl UpdateFreezeInput {
+    pub fn new(ptr: *const u8, len: u32) -> Self {
+        let init_input = unsafe { slice::from_raw_parts(ptr, (len as u16).into()) };
+        Self::abi_decode(init_input, true).unwrap()
+    }
+    pub fn unpack(&self) -> bool {
+        self.freeze
     }
 }
 //@todo create input handlers for commit header range & commit next header
