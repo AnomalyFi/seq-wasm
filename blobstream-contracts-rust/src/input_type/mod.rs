@@ -1,4 +1,4 @@
-use crate::{slice, sol, FixedBytes, SolType, Uint, U256, U64};
+use crate::{slice, sol, FixedBytes, SolType, U256};
 use crate::{BinaryMerkleProof, DataRootTuple};
 
 sol!(

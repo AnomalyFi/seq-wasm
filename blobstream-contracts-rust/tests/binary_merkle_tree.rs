@@ -1,8 +1,7 @@
 use std::vec;
 
-use alloy_primitives::{bytes, fixed_bytes, FixedBytes, U256};
-use blobstream_contracts_rust::{binary_merkle_tree::verify, *};
-// use sha2::Digest;
+use alloy_primitives::{bytes, fixed_bytes};
+use blobstream_contracts_rust::{binary_merkle_tree::verify, BinaryMerkleProof, FixedBytes, U256};
 
 fn set_up() -> BinaryMerkleProof {
     let side_nodes = vec![FixedBytes::<32>::new([0; 32])];
@@ -30,7 +29,7 @@ fn test_verify_none() {
     let data = bytes!();
     assert_eq!(false, verify(root, b_m_p, data))
 }
-//@todo
+
 #[test]
 fn test_verify_one_leaf_empty() {
     let root = fixed_bytes!("6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d");
@@ -38,7 +37,6 @@ fn test_verify_one_leaf_empty() {
     let data = bytes!();
     assert_eq!(true, verify(root, b_m_p, data));
 }
-//@todo
 #[test]
 fn test_verify_one_leaf_some() {
     let root = fixed_bytes!("48c90c8ae24688d6bef5d48a30c2cc8b6754335a8db21793cc0a8e3bed321729");
@@ -46,7 +44,7 @@ fn test_verify_one_leaf_some() {
     let data = bytes!("deadbeef");
     assert_eq!(true, verify(root, b_m_p, data));
 }
-//@todo
+
 #[test]
 fn test_verify_one_leaf_01() {
     let root = fixed_bytes!("b413f47d13ee2fe6c845b2ee141af81de858df4ec549a58b7970bb96645bc8d2");

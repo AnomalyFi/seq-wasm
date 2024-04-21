@@ -1,4 +1,4 @@
-#![cfg_attr(debug_assertions, allow(dead_code, unused_imports, unused_variables))]
+// #![cfg_attr(debug_assertions, allow(dead_code, unused_imports, unused_variables))]
 extern crate alloc;
 extern crate core;
 extern crate wee_alloc;
@@ -7,8 +7,6 @@ pub mod binary_merkle_tree;
 pub mod input_type;
 pub mod state;
 pub mod utils;
-// static allocator
-use alloc::vec::Vec;
 
 // alloy imports
 pub use alloy_primitives::{
@@ -131,7 +129,7 @@ pub unsafe extern "C" fn commit_header_range(ptr: *const u8, len: u32) -> bool {
     if is_frozen() && !is_initialized() {
         return false;
     }
-    let (target_block, input, output, proof) = CommitHeaderRangeInput::new(ptr, len).unpack();
+    let (target_block, input, output, _proof) = CommitHeaderRangeInput::new(ptr, len).unpack();
     let trusted_block = state::get_u64(STATIC_LATESTBLOCK);
     let trusted_header =
         state::get_mapping_u64_bytes32(DYNAMIC_BLOCK_HEIGHT_TO_HEADER_HASH, trusted_block);
