@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	_ "embed"
 	"errors"
@@ -12,12 +13,17 @@ import (
 
 	"strings"
 
+	"github.com/consensys/gnark-crypto/ecc"
+	"github.com/consensys/gnark/backend/plonk"
+	"github.com/consensys/gnark/frontend"
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
+	gtype "github.com/succinctlabs/gnark-plonky2-verifier/types"
+	"github.com/succinctlabs/gnark-plonky2-verifier/variables"
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"
 )
@@ -42,42 +48,30 @@ type BinaryMerkleProof struct {
 	NumLeaves *big.Int
 }
 
+// CommitHeaderRangeInput is an auto generated low-level Go binding around an user-defined struct.
+type CommitHeaderRangeInput struct {
+	TargetBlock uint64
+	Input       []byte
+	Output      []byte
+	Proof       []byte
+}
+
 // DataRootTuple is an auto generated low-level Go binding around an user-defined struct.
 type DataRootTuple struct {
 	Height   *big.Int
 	DataRoot [32]byte
 }
 
-// Signature is an auto generated low-level Go binding around an user-defined struct.
-type Signature struct {
-	V uint8
-	R [32]byte
-	S [32]byte
+// InitializerInput is an auto generated low-level Go binding around an user-defined struct.
+type InitializerInput struct {
+	Height uint64
+	Header [32]byte
 }
 
-// SubmitDataRootTupleRootInput is an auto generated low-level Go binding around an user-defined struct.
-type SubmitDataRootTupleRootInput struct {
-	NewNonce            *big.Int
-	ValidatorSetNonce   *big.Int
-	DataRootTupleRoot   [32]byte
-	CurrentValidatorSet []Validator
-	Sigs                []Signature
-}
-
-// UpdateValidatorSetInput is an auto generated low-level Go binding around an user-defined struct.
-type UpdateValidatorSetInput struct {
-	NewNonce            *big.Int
-	OldNonce            *big.Int
-	NewPowerThreshold   *big.Int
-	NewValidatorSetHash [32]byte
-	CurrentValidatorSet []Validator
-	Sigs                []Signature
-}
-
-// Validator is an auto generated low-level Go binding around an user-defined struct.
-type Validator struct {
-	Addr  common.Address
-	Power *big.Int
+// OutputBreaker is an auto generated low-level Go binding around an user-defined struct.
+type OutputBreaker struct {
+	TargetHeader   [32]byte
+	DataCommitment [32]byte
 }
 
 // VerifyAttestationInput is an auto generated low-level Go binding around an user-defined struct.
@@ -87,17 +81,37 @@ type VerifyAttestationInput struct {
 	Proof          BinaryMerkleProof
 }
 
-// InputsInitializerInput is an auto generated low-level Go binding around an user-defined struct.
-type InputsInitializerInput struct {
-	Nonce                  *big.Int
-	PowerThreshold         *big.Int
-	ValidatorSetCheckPoint [32]byte
-}
-
 // MainMetaData contains all meta data concerning the Main contract.
 var MainMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"nonce\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"power_threshold\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"validator_set_check_point\",\"type\":\"bytes32\"}],\"internalType\":\"structinputs.InitializerInput\",\"name\":\"_i\",\"type\":\"tuple\"}],\"name\":\"dummyInitializerInput\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"_newNonce\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_validatorSetNonce\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"_dataRootTupleRoot\",\"type\":\"bytes32\"},{\"components\":[{\"internalType\":\"address\",\"name\":\"addr\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"power\",\"type\":\"uint256\"}],\"internalType\":\"structinputs.Validator[]\",\"name\":\"_currentValidatorSet\",\"type\":\"tuple[]\"},{\"components\":[{\"internalType\":\"uint8\",\"name\":\"v\",\"type\":\"uint8\"},{\"internalType\":\"bytes32\",\"name\":\"r\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"s\",\"type\":\"bytes32\"}],\"internalType\":\"structinputs.Signature[]\",\"name\":\"_sigs\",\"type\":\"tuple[]\"}],\"internalType\":\"structinputs.SubmitDataRootTupleRootInput\",\"name\":\"_s\",\"type\":\"tuple\"}],\"name\":\"dummySubmitDataRootTupleRootInput\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"_newNonce\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_oldNonce\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_newPowerThreshold\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"_newValidatorSetHash\",\"type\":\"bytes32\"},{\"components\":[{\"internalType\":\"address\",\"name\":\"addr\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"power\",\"type\":\"uint256\"}],\"internalType\":\"structinputs.Validator[]\",\"name\":\"_currentValidatorSet\",\"type\":\"tuple[]\"},{\"components\":[{\"internalType\":\"uint8\",\"name\":\"v\",\"type\":\"uint8\"},{\"internalType\":\"bytes32\",\"name\":\"r\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"s\",\"type\":\"bytes32\"}],\"internalType\":\"structinputs.Signature[]\",\"name\":\"_sigs\",\"type\":\"tuple[]\"}],\"internalType\":\"structinputs.UpdateValidatorSetInput\",\"name\":\"_u\",\"type\":\"tuple\"}],\"name\":\"dummyUpdateValidatorSet\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"_tupleRootNonce\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"height\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"dataRoot\",\"type\":\"bytes32\"}],\"internalType\":\"structinputs.DataRootTuple\",\"name\":\"_tuple\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"bytes32[]\",\"name\":\"sideNodes\",\"type\":\"bytes32[]\"},{\"internalType\":\"uint256\",\"name\":\"key\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"numLeaves\",\"type\":\"uint256\"}],\"internalType\":\"structinputs.BinaryMerkleProof\",\"name\":\"_proof\",\"type\":\"tuple\"}],\"internalType\":\"structinputs.VerifyAttestationInput\",\"name\":\"_v\",\"type\":\"tuple\"}],\"name\":\"dummyVerifyAttestationInput\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[{\"components\":[{\"internalType\":\"uint64\",\"name\":\"targetBlock\",\"type\":\"uint64\"},{\"internalType\":\"bytes\",\"name\":\"input\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"output\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"proof\",\"type\":\"bytes\"}],\"internalType\":\"structinputs.CommitHeaderRangeInput\",\"name\":\"_c\",\"type\":\"tuple\"}],\"name\":\"dummyCommitHeaderRangeInput\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint64\",\"name\":\"height\",\"type\":\"uint64\"},{\"internalType\":\"bytes32\",\"name\":\"header\",\"type\":\"bytes32\"}],\"internalType\":\"structinputs.InitializerInput\",\"name\":\"_i\",\"type\":\"tuple\"}],\"name\":\"dummyInitializerInput\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"targetHeader\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"dataCommitment\",\"type\":\"bytes32\"}],\"internalType\":\"structinputs.OutputBreaker\",\"name\":\"_o\",\"type\":\"tuple\"}],\"name\":\"dummyOutputBreaker\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"_tupleRootNonce\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"height\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"dataRoot\",\"type\":\"bytes32\"}],\"internalType\":\"structinputs.DataRootTuple\",\"name\":\"_tuple\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"bytes32[]\",\"name\":\"sideNodes\",\"type\":\"bytes32[]\"},{\"internalType\":\"uint256\",\"name\":\"key\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"numLeaves\",\"type\":\"uint256\"}],\"internalType\":\"structinputs.BinaryMerkleProof\",\"name\":\"_proof\",\"type\":\"tuple\"}],\"internalType\":\"structinputs.VerifyAttestationInput\",\"name\":\"_v\",\"type\":\"tuple\"}],\"name\":\"dummyVerifyAttestationInput\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
 }
+
+// can't load this from the package. why?? plonky2x is not a go module
+
+// We assume that the publicInputs have 64 bytes
+// publicInputs[0:32] is a big-endian representation of a SHA256 hash that has been truncated to 253 bits.
+// Note that this truncation happens in the `WrappedCircuit` when computing the `input_hash`
+// The reason for truncation is that we only want 1 public input on-chain for the input hash
+// to save on gas costs
+type Plonky2xVerifierCircuit struct {
+	// A digest of the plonky2x circuit that is being verified.
+	VerifierDigest frontend.Variable `gnark:"verifierDigest,public"`
+
+	// The input hash is the hash of all onchain inputs into the function.
+	InputHash frontend.Variable `gnark:"inputHash,public"`
+
+	// The output hash is the hash of all outputs from the function.
+	OutputHash frontend.Variable `gnark:"outputHash,public"`
+
+	// Private inputs to the circuit
+	ProofWithPis variables.ProofWithPublicInputs
+	VerifierData variables.VerifierOnlyCircuitData
+
+	// Circuit configuration that is not part of the circuit itself.
+	CommonCircuitData gtype.CommonCircuitData `gnark:"-"`
+}
+
+func (c *Plonky2xVerifierCircuit) Define(api frontend.API) error { return nil }
 
 // MainABI is the input ABI used to generate the binding from.
 // Deprecated: Use MainMetaData.ABI instead.
@@ -149,13 +163,46 @@ func main() {
 			os.Exit(10)
 		}
 		mapper[slot] = bytes
-
+	}
+	gnarkVer := func(ctxInner context.Context, m api.Module, trustedBlock uint64) uint32 {
+		vkFile, err := os.Open("/vk.bin")
+		// we need to do abi decode, here @todo
+		if err != nil {
+			fmt.Printf("failed to open vk file: %s", err)
+			return 0
+		}
+		vk := plonk.NewVerifyingKey(ecc.BN254) // this should be done while vm instantiation
+		_, err = vk.ReadFrom(vkFile)
+		if err != nil {
+			fmt.Printf("failed to read vk file: %s", err)
+			return 0
+		}
+		vkFile.Close()
+		data, _ := os.ReadFile("/home/ubuntu/blobstreamx/proofs/output.json")
+		proof := plonk.NewProof(ecc.BN254)
+		_, err = proof.ReadFrom(bytes.NewBuffer(data))
+		if err != nil {
+			fmt.Println(err)
+			return 0
+		}
+		assg2 := &Plonky2xVerifierCircuit{
+			VerifierDigest: 1, // replace with generated values
+			InputHash:      2,
+			OutputHash:     3,
+			ProofWithPis:   variables.ProofWithPublicInputs{},
+			VerifierData:   variables.VerifierOnlyCircuitData{},
+		}
+		wit, _ := frontend.NewWitness(assg2, ecc.BN254.ScalarField())
+		pubWit, _ := wit.Public()
+		plonk.Verify(proof, vk, pubWit)
+		return 0
 	}
 	_, err := r.NewHostModuleBuilder("env").NewFunctionBuilder().
 		WithFunc(stateGetBytesInner).Export("stateGetBytes").
 		NewFunctionBuilder().WithFunc(stateStoreBytesInner).Export("stateStoreBytes").
 		NewFunctionBuilder().WithFunc(stateStoreDynamicBytesInner).Export("stateStoreDynamicBytes").
 		NewFunctionBuilder().WithFunc(stateGetDynamicBytesInner).Export("stateGetDynamicBytes").
+		NewFunctionBuilder().WithFunc(gnarkVer).Export("gnarkVerify").
 		Instantiate(ctxWasm)
 	if err != nil {
 		fmt.Println(err)
@@ -170,19 +217,11 @@ func main() {
 	allocate_ptr = mod.ExportedFunction("allocate_ptr")
 	deallocate_ptr := mod.ExportedFunction("deallocate_ptr")
 	tx_function := mod.ExportedFunction("initializer")
-	sdrt_function := mod.ExportedFunction("submit_data_root_tuple_root")
-	sdrtri := SubmitDataRootTupleRootInput{
-		NewNonce:            big.NewInt(2),
-		ValidatorSetNonce:   big.NewInt(1),
-		DataRootTupleRoot:   [32]byte(common.Hex2BytesFixed("0de92bac0b356560d821f8e7b6f5c9fe4f3f88f6c822283efd7ab51ad56a640e", 32)),
-		CurrentValidatorSet: []Validator{{common.HexToAddress("9c2B12b5a07FC6D719Ed7646e5041A7E85758329"), big.NewInt(5000)}},
-		Sigs:                []Signature{{V: 28, R: [32]byte(common.Hex2BytesFixed("f48f949c827fb5a0db3bf416ea657d2750eeadb7b6906c6fb857d2fd1dd57181", 32)), S: [32]byte(common.Hex2BytesFixed("46ae888d1453fd5693b0148cecf0368b42552e597a3b628456946cf63b627b04", 32))}},
-	}
+	chr_function := mod.ExportedFunction("commit_header_range")
 
-	data := InputsInitializerInput{
-		Nonce:                  big.NewInt(1),
-		PowerThreshold:         big.NewInt(3333),
-		ValidatorSetCheckPoint: [32]byte(common.Hex2BytesFixed("4a5cc92ce4a0fb368c83da44ea489e4b908ce75bdc460c31c662f35fd3911ff1", 32)),
+	data := InitializerInput{
+		Height: 1,
+		Header: [32]byte(common.Hex2BytesFixed("4a5cc92ce4a0fb368c83da44ea489e4b908ce75bdc460c31c662f35fd3911ff1", 32)),
 	}
 	// Encode the parameters using the ABI packer
 	packed, err := abi.ABI.Pack(*MainABI, "dummyInitializerInput", data)
@@ -196,7 +235,6 @@ func main() {
 		os.Exit(3)
 	}
 	inputPtr := results[0]
-
 	defer deallocate_ptr.Call(ctxWasm, inputPtr, uint64(len(packed2)))
 	mod.Memory().Write(uint32(inputPtr), packed2) // TODO: change
 	results, err = tx_function.Call(ctxWasm, inputPtr, uint64(len(packed2)))
@@ -205,8 +243,8 @@ func main() {
 		os.Exit(4)
 	}
 	fmt.Println(results[0] == 1)
-
-	packed, err = abi.ABI.Pack(*MainABI, "dummySubmitDataRootTupleRootInput", sdrtri)
+	chri := CommitHeaderRangeInput{}
+	packed, err = abi.ABI.Pack(*MainABI, "dummyCommitHeaderRangeInput", chri)
 	if err != nil {
 		fmt.Print(err)
 	}
@@ -219,10 +257,10 @@ func main() {
 	inputPtr = results[0]
 	defer deallocate_ptr.Call(ctxWasm, inputPtr, uint64(len(packed2)))
 	mod.Memory().Write(uint32(inputPtr), packed2) // TODO: change
-	results, err = sdrt_function.Call(ctxWasm, inputPtr, uint64(len(packed2)))
+	results, err = chr_function.Call(ctxWasm, inputPtr, uint64(len(packed2)))
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(4)
 	}
-	fmt.Println(mapper)
+	fmt.Println([]byte{byte(results[0])})
 }

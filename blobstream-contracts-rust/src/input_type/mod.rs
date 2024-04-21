@@ -1,78 +1,31 @@
-use core::slice;
-
-use alloy_sol_types::SolType;
-
-use super::{sol, BinaryMerkleProof, DataRootTuple, FixedBytes, Signature, Validator, U256};
+use crate::{slice, sol, FixedBytes, SolType, Uint, U256, U64};
+use crate::{BinaryMerkleProof, DataRootTuple};
 
 sol!(
-    struct SDRTRInput {
-        uint256 new_nonce;
-        uint256 validator_set_nonce;
-        bytes32 data_root_tuple_root;
-        Validator[] current_validators;
-        Signature[] signatures;
-    }
-    struct UVSInput {
-        uint256 new_nonce;
-        uint256 old_nonce;
-        uint256 new_power_threshold;
-        bytes32 new_validator_set_hash;
-        Validator[] current_validators;
-        Signature[] signatures;
-    }
     struct VAInput {
         uint256 tuple_root_nonce;
         DataRootTuple tuple;
         BinaryMerkleProof proof;
     }
     struct InitializerInput {
-        uint256 nonce;
-        uint256 power_threshold;
-        bytes32 validator_set_check_point;
+        uint64  height;
+        bytes32 header;
+    }
+    struct CommitHeaderRangeInput {
+        uint64 targetBlock;
+        bytes input;
+        bytes output;
+        bytes proof;
+    }
+    struct UpdateFreezeInput{
+        bool freeze;
+    }
+    struct OutputBreaker{
+        bytes32 targetHeader;
+        bytes32 dataCommitment;
     }
 );
 
-impl UVSInput {
-    pub fn new(ptr: *const u8, len: u32) -> Self {
-        let uvs_input = unsafe { slice::from_raw_parts(ptr, (len as u16).into()) };
-        Self::abi_decode(uvs_input, true).unwrap()
-    }
-    pub fn unpack(
-        &self,
-    ) -> (
-        U256,
-        U256,
-        U256,
-        FixedBytes<32>,
-        Vec<Validator>,
-        Vec<Signature>,
-    ) {
-        (
-            self.new_nonce,
-            self.old_nonce,
-            self.new_power_threshold,
-            self.new_validator_set_hash,
-            self.current_validators.clone(),
-            self.signatures.clone(),
-        )
-    }
-}
-
-impl SDRTRInput {
-    pub fn new(ptr: *const u8, len: u32) -> Self {
-        let sdrtr_input = unsafe { slice::from_raw_parts(ptr, (len as u16).into()) };
-        Self::abi_decode(sdrtr_input, true).unwrap()
-    }
-    pub fn unpack(&self) -> (U256, U256, FixedBytes<32>, Vec<Validator>, Vec<Signature>) {
-        (
-            self.new_nonce,
-            self.validator_set_nonce,
-            self.data_root_tuple_root,
-            self.current_validators.clone(),
-            self.signatures.clone(),
-        )
-    }
-}
 impl VAInput {
     pub fn new(ptr: *const u8, len: u32) -> Self {
         let va_input = unsafe { slice::from_raw_parts(ptr, (len as u16).into()) };
@@ -91,11 +44,40 @@ impl InitializerInput {
         let init_input = unsafe { slice::from_raw_parts(ptr, (len as u16).into()) };
         Self::abi_decode(init_input, true).unwrap()
     }
-    pub fn unpack(&self) -> (U256, U256, FixedBytes<32>) {
+    pub fn unpack(&self) -> (u64, FixedBytes<32>) {
+        (self.height, self.header.clone())
+    }
+}
+
+impl CommitHeaderRangeInput {
+    pub fn new(ptr: *const u8, len: u32) -> Self {
+        let init_input = unsafe { slice::from_raw_parts(ptr, (len as u16).into()) };
+        Self::abi_decode(init_input, true).unwrap()
+    }
+    pub fn unpack(&self) -> (u64, Vec<u8>, Vec<u8>, Vec<u8>) {
         (
-            self.nonce,
-            self.power_threshold,
-            self.validator_set_check_point,
+            self.targetBlock,
+            self.input.clone(),
+            self.output.clone(),
+            self.proof.clone(),
         )
     }
 }
+
+impl OutputBreaker {
+    pub fn decode(data: &[u8]) -> (FixedBytes<32>, FixedBytes<32>) {
+        let ob = Self::abi_decode(data, true).unwrap();
+        (ob.targetHeader, ob.dataCommitment)
+    }
+}
+
+impl UpdateFreezeInput {
+    pub fn new(ptr: *const u8, len: u32) -> Self {
+        let init_input = unsafe { slice::from_raw_parts(ptr, (len as u16).into()) };
+        Self::abi_decode(init_input, true).unwrap()
+    }
+    pub fn unpack(&self) -> bool {
+        self.freeze
+    }
+}
+//@todo create input handlers for commit header range & commit next header
