@@ -5,6 +5,7 @@ go 1.21.3
 require (
 	github.com/ethereum/go-ethereum v1.13.14
 	github.com/tetratelabs/wazero v1.6.0
+	github.com/consensys/gnark-crypto v0.12.2-0.20231013160410-1f65e75b6dfb
 )
 
 require (
@@ -28,7 +29,6 @@ require (
 	github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
 	github.com/consensys/bavard v0.1.13 // indirect
 	github.com/consensys/gnark v0.9.1
-	github.com/consensys/gnark-crypto v0.12.2-0.20231013160410-1f65e75b6dfb // indirect
 	github.com/crate-crypto/go-kzg-4844 v0.7.0 // indirect
 	github.com/deckarep/golang-set/v2 v2.1.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
