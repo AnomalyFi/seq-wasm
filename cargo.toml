@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "blobstream-contracts-rust",
+    "vector-contracts-rust",
+    "input-types-test",
+]
+resolver = "2"
