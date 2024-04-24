@@ -18,6 +18,7 @@ extern "C" {
 }
 
 pub unsafe fn gnark_verify(trusted_block: u64, header_range_function_id: FixedBytes<32>) -> bool {
+    //@todo not all checks need to be made in extern gnark verify. keep that as minimal possible.
     let valid = gnark_verify_inner(
         trusted_block,
         header_range_function_id.as_ptr() as u32,
@@ -57,6 +58,25 @@ pub fn get_u64(variable: u32) -> u64 {
         let ptr_packed = get_bytes(variable);
         let data = slice::from_raw_parts((ptr_packed >> 32) as *mut u8, (ptr_packed as u16).into());
         u64::from_be_bytes(data.try_into().unwrap())
+    }
+}
+
+pub fn store_u32(variable: u32, value: u32) {
+    let value_bytes = value.to_be_bytes();
+    unsafe {
+        store_bytes(
+            variable,
+            value_bytes.as_ptr() as u32,
+            value_bytes.len() as u32,
+        );
+    }
+}
+
+pub fn get_u32(variable: u32) -> u32 {
+    unsafe {
+        let ptr_packed = get_bytes(variable);
+        let data = slice::from_raw_parts((ptr_packed >> 32) as *mut u8, (ptr_packed as u16).into());
+        u32::from_be_bytes(data.try_into().unwrap())
     }
 }
 
@@ -184,6 +204,33 @@ pub fn get_mapping_u64_bytes32(offset: u32, key: u64) -> FixedBytes<32> {
     }
 }
 
+pub fn store_mapping_u32_bytes32(offset: u32, key: u32, value: FixedBytes<32>) {
+    if offset == 0 {
+        panic!("offset should not be zero");
+    }
+    let value_bytes = value.abi_encode();
+    unsafe {
+        let pseudo_key = key % 896; // offload this to runtime?? @todo
+        store_dynamic_bytes(
+            offset,
+            pseudo_key as u32,
+            value_bytes.as_ptr() as u32,
+            value_bytes.len() as u32,
+        )
+    };
+}
+
+pub fn get_mapping_u32_bytes32(offset: u32, key: u32) -> FixedBytes<32> {
+    if offset == 0 {
+        panic!("offset should not be zero");
+    }
+    unsafe {
+        let pseudo_key = key % 896;
+        let ptr_packed = get_dynamic_bytes(offset, pseudo_key as u32);
+        let data = slice::from_raw_parts((ptr_packed >> 32) as *mut u8, (ptr_packed as u16).into());
+        FixedBytes::from_slice(data)
+    }
+}
 // use enums for state variables & provide enough abstraction
 
 // Storage layout:

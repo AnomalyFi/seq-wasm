@@ -18,7 +18,6 @@ use input_type::{
     CommitHeaderRangeInput, InitializerInput, OutputBreaker, UpdateFreezeInput, VAInput,
 };
 use state::gnark_verify;
-use utils::TxContext;
 
 // std lib
 use core::slice;
@@ -27,7 +26,7 @@ pub use std::alloc::{alloc, Layout};
 // seq wasm sdk
 pub use seq_wasm_sdk::allocator::*;
 use seq_wasm_sdk::state;
-use seq_wasm_sdk::utils;
+use seq_wasm_sdk::utils::TxContext;
 
 // solidity type decleration begin ----
 sol! {
@@ -107,7 +106,11 @@ pub extern "C" fn update_freeze(tx_context: *const TxContext, ptr: *const u8, le
 
 #[cfg_attr(all(target_arch = "wasm32"), export_name = "commit_header_range")]
 #[no_mangle]
-pub unsafe extern "C" fn commit_header_range(ptr: *const u8, len: u32) -> bool {
+pub unsafe extern "C" fn commit_header_range(
+    tx_context: *const TxContext,
+    ptr: *const u8,
+    len: u32,
+) -> bool {
     if is_frozen() && !is_initialized() {
         return false;
     }
@@ -159,7 +162,11 @@ pub unsafe extern "C" fn commit_header_range(ptr: *const u8, len: u32) -> bool {
 /// against a posted data commitment.
 #[cfg_attr(all(target_arch = "wasm32"), export_name = "verify_attestation")]
 #[no_mangle]
-pub extern "C" fn verify_attestation(ptr: *const u8, len: u32) -> bool {
+pub extern "C" fn verify_attestation(
+    tx_context: *const TxContext,
+    ptr: *const u8,
+    len: u32,
+) -> bool {
     if is_frozen() && is_initialized() {
         return false;
     }

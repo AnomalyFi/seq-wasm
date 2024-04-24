@@ -39,6 +39,9 @@ TODO:
 - [ ] Migrate utils to SDK
 
 - [ ] Change rust memory allocator
+
+- [ ] automate tests to run on wasm32-unknown-unknown
+
 Stateful Wasm contract support for SEQ
 
 Every rust contract should implement this:
