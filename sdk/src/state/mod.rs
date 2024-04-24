@@ -1,4 +1,4 @@
-use crate::{slice, FixedBytes, SolValue, HEADER_RANGE_FUNCTION_ID, U256};
+use crate::{slice, FixedBytes, SolValue, U256};
 
 #[link(wasm_import_module = "env")]
 extern "C" {
@@ -17,11 +17,11 @@ extern "C" {
     pub fn gnark_verify_inner(trusted_block: u64, ptr: u32, size: u32) -> u32;
 }
 
-pub unsafe fn gnark_verify(trusted_block: u64) -> bool {
+pub unsafe fn gnark_verify(trusted_block: u64, header_range_function_id: FixedBytes<32>) -> bool {
     let valid = gnark_verify_inner(
         trusted_block,
-        HEADER_RANGE_FUNCTION_ID.as_ptr() as u32,
-        HEADER_RANGE_FUNCTION_ID.len() as u32,
+        header_range_function_id.as_ptr() as u32,
+        header_range_function_id.len() as u32,
     );
     if valid == 1 {
         true

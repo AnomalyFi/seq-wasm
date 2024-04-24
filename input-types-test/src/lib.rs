@@ -1,9 +1,9 @@
 extern crate alloc;
 extern crate core;
 extern crate wee_alloc;
-use blobstream_contracts_rust::state::get_bytes;
-pub use blobstream_contracts_rust::{allocate, deallocate}; // re-export
 use core::slice;
+pub use seq_wasm_sdk::allocator::{allocate, deallocate}; // re-export
+use seq_wasm_sdk::state::get_bytes;
 pub use std::alloc::{alloc, Layout};
 
 #[no_mangle]

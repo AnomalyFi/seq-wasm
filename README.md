@@ -32,6 +32,13 @@ TODO:
 - [x] Don't allow functions to execute if initializer is not called.
 - [x] implement onlyOwner modifier functionality.
 - [x] Add header range funciton id.
+
+- [ ] Migrate reusable code to SDK
+- [ ] Migrate allocator to SDK
+- [ ] Migrate state to SDK
+- [ ] Migrate utils to SDK
+
+- [ ] Change rust memory allocator
 Stateful Wasm contract support for SEQ
 
 Every rust contract should implement this:

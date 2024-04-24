@@ -5,6 +5,8 @@ edition = "2021"
 author = "manojkgorle"
 
 [dependencies]
+wee_alloc = "0.4.5"
+seq_wasm_sdk = { path = "../sdk" }
 
 [profile.release]
 opt-level = "z"

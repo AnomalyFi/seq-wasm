@@ -1,12 +1,10 @@
-// #![cfg_attr(debug_assertions, allow(dead_code, unused_imports, unused_variables))]
+#![cfg_attr(debug_assertions, allow(dead_code, unused_imports, unused_variables))]
 extern crate alloc;
 extern crate core;
 extern crate wee_alloc;
 
 pub mod binary_merkle_tree;
 pub mod input_type;
-pub mod state;
-pub mod utils;
 
 // alloy imports
 pub use alloy_primitives::{
@@ -25,7 +23,11 @@ use utils::TxContext;
 // std lib
 use core::slice;
 pub use std::alloc::{alloc, Layout};
-use std::mem::MaybeUninit;
+
+// seq wasm sdk
+pub use seq_wasm_sdk::allocator::*;
+use seq_wasm_sdk::state;
+use seq_wasm_sdk::utils;
 
 // solidity type decleration begin ----
 sol! {
@@ -55,27 +57,6 @@ sol! {
 }
 // solidity type decleration ends ----
 
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
-
-/// Allocates size bytes and leaks the pointer where they start.
-#[cfg_attr(all(target_arch = "wasm32"), export_name = "allocate_ptr")]
-#[no_mangle]
-pub extern "C" fn allocate(size: usize) -> *mut u8 {
-    // Allocate the amount of bytes needed.
-    let vec: Vec<MaybeUninit<u8>> = Vec::with_capacity(size);
-
-    // into_raw leaks the memory to the caller.
-    Box::into_raw(vec.into_boxed_slice()) as *mut u8
-}
-
-/// Deallocates size bytes at the pointer.
-#[cfg_attr(all(target_arch = "wasm32"), export_name = "deallocate_ptr")]
-#[no_mangle]
-pub unsafe extern "C" fn deallocate(ptr: *mut u8, size: usize) {
-    let _ = Vec::from_raw_parts(ptr, 0, size);
-}
-
 // get state variables enum from program vm.
 const STATIC_ISINITIALIZED: u32 = 0;
 const STATIC_FROZEN: u32 = 1;
@@ -92,6 +73,7 @@ const DYNAMIC_STATE_DATA_COMMITMENTS: u32 = 3;
 const DATA_COMMITMENT_MAX: u64 = 10_000;
 const HEADER_RANGE_FUNCTION_ID: FixedBytes<32> =
     fixed_bytes!("16cb5c45290c8545b9998275c07e7577fa0962bb6e35597c69de570649b7083f");
+
 #[cfg_attr(all(target_arch = "wasm32"), export_name = "initializer")]
 #[no_mangle]
 pub extern "C" fn initializer(tx_context: *const TxContext, ptr: *const u8, len: u32) -> bool {
@@ -147,7 +129,7 @@ pub unsafe extern "C" fn commit_header_range(ptr: *const u8, len: u32) -> bool {
         // proof built on a wrong block
         return false;
     }
-    if gnark_verify(trusted_block) {
+    if gnark_verify(trusted_block, HEADER_RANGE_FUNCTION_ID) {
         // valid proof
         let (target_header, data_commitment) = OutputBreaker::decode(&output);
         if target_block <= trusted_block || target_block - trusted_block > DATA_COMMITMENT_MAX {
