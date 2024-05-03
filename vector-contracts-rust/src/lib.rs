@@ -1,4 +1,4 @@
-// #![cfg_attr(debug_assertions, allow(dead_code, unused_imports, unused_variables))]
+#![cfg_attr(debug_assertions, allow(dead_code, unused_imports, unused_variables))]
 extern crate alloc;
 extern crate core;
 extern crate wee_alloc;
@@ -12,12 +12,10 @@ use alloy_sol_macro::sol;
 use alloy_sol_types::{SolType, SolValue};
 use input_type::OutputBreaker;
 // std lib
-use core::slice;
-pub use std::alloc::{alloc, Layout};
-use std::mem::MaybeUninit;
 
 // seq wasm sdk
-use seq_wasm_sdk::allocator::*;
+pub use seq_wasm_sdk::allocator::*;
+use seq_wasm_sdk::slice;
 use seq_wasm_sdk::state;
 use seq_wasm_sdk::utils::TxContext;
 

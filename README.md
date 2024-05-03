@@ -33,14 +33,16 @@ TODO:
 - [x] implement onlyOwner modifier functionality.
 - [x] Add header range funciton id.
 
-- [ ] Migrate reusable code to SDK
-- [ ] Migrate allocator to SDK
-- [ ] Migrate state to SDK
-- [ ] Migrate utils to SDK
+- [x] Migrate reusable code to SDK
+- [x] Migrate allocator to SDK
+- [x] Migrate state to SDK
+- [x] Migrate utils to SDK
 
 - [ ] Change rust memory allocator
 
-- [ ] automate tests to run on wasm32-unknown-unknown
+- [ ] automate github tests to run on wasm32-unknown-unknown
+
+- [ ] use circuit digest bigInt instead of circuit digest hash for header_range_function_id ??
 
 Stateful Wasm contract support for SEQ
 

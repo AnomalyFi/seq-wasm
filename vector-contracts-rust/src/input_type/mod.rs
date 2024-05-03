@@ -1,4 +1,4 @@
-use crate::{slice, sol, FixedBytes, SolType, U256};
+use crate::{slice, sol, FixedBytes, SolType};
 
 sol!(
     struct InitializerInput{
