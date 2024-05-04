@@ -6,14 +6,14 @@ pub extern crate wee_alloc;
 pub mod allocator;
 pub mod state;
 pub mod utils;
-// alloy imports
+// alloy re-exports
 pub use alloy_primitives::{
-    fixed_bytes, hex::FromHex, keccak256, Bytes, FixedBytes, Uint, B256, U256, U64,
+    bytes, fixed_bytes, hex::FromHex, keccak256, Bytes, FixedBytes, Uint, B256, U256, U64,
 };
 pub use alloy_sol_macro::sol;
 pub use alloy_sol_types::{SolType, SolValue};
 
-// std lib
+// std lib re-exports
 pub use core::slice;
 pub use std::alloc::{alloc, Layout};
 pub use std::mem::MaybeUninit;

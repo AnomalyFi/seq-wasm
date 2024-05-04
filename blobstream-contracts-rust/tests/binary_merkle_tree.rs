@@ -1,8 +1,5 @@
-use std::vec;
-
-use alloy_primitives::{bytes, fixed_bytes};
-use blobstream_contracts_rust::{binary_merkle_tree::verify, BinaryMerkleProof, FixedBytes, U256};
-
+use blobstream_contracts_rust::{binary_merkle_tree::verify, input_type::BinaryMerkleProof};
+use seq_wasm_sdk::{bytes, fixed_bytes, FixedBytes, U256};
 fn set_up() -> BinaryMerkleProof {
     let side_nodes = vec![FixedBytes::<32>::new([0; 32])];
     let key = U256::from(0);

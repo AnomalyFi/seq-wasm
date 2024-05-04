@@ -44,9 +44,15 @@ TODO:
 
 - [ ] use circuit digest bigInt instead of circuit digest hash for header_range_function_id ??
 
+- [ ] consider caching the abi(initialising abi is taking significant time), verification key(disk read takes significant time) for better performance.
+
+- [ ] How about hashing the input & output bytes in wasm contract itself and passing the hashed values instead of sha256 hashing in go? how would be contract sizes get effected with this and what could be the performance improvements?
+
+- [ ] Cache circuit digest hash too, instead of hashing every time.
 Stateful Wasm contract support for SEQ
 
 Every rust contract should implement this:
+
 ```rust 
 extern crate alloc;
 extern crate core;

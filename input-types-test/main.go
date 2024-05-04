@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	_ "embed"
 	"errors"
 	"fmt"
@@ -10,7 +11,6 @@ import (
 	"math/big"
 	"os"
 	"strconv"
-
 	"strings"
 
 	"github.com/consensys/gnark-crypto/ecc"
@@ -22,6 +22,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/succinctlabs/gnark-plonky2-verifier/poseidon"
 	gtype "github.com/succinctlabs/gnark-plonky2-verifier/types"
 	"github.com/succinctlabs/gnark-plonky2-verifier/variables"
 	"github.com/tetratelabs/wazero"
@@ -116,6 +117,7 @@ func (c *Plonky2xVerifierCircuit) Define(api frontend.API) error { return nil }
 // MainABI is the input ABI used to generate the binding from.
 // Deprecated: Use MainMetaData.ABI instead.
 var MainABI, _ = MainMetaData.GetAbi() // modified
+var mask = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 253), big.NewInt(1))
 
 func main() {
 	wasmByte, _ := ioutil.ReadFile("/home/manojkgorle/nodekit/seq-wasm/blobstream-contracts-rust/target/wasm32-unknown-unknown/release/blobstream_contracts_rust.wasm")
@@ -126,6 +128,7 @@ func main() {
 	mapper := map[string][]byte{
 		"0": {0},
 	}
+	chri := CommitHeaderRangeInput{}
 	stateGetBytesInner := func(ctxInner context.Context, m api.Module, i uint32) uint64 {
 		slot := "slot" + strconv.Itoa(int(i))
 		result := mapper[slot]
@@ -164,13 +167,22 @@ func main() {
 		}
 		mapper[slot] = bytes
 	}
-	gnarkVer := func(ctxInner context.Context, m api.Module, trustedBlock uint64) uint32 {
-		vkFile, err := os.Open("/vk.bin")
+	gnarkVer := func(ctxInner context.Context, m api.Module, ptr uint32, size uint32) uint32 {
+		// we will switch from circuit digest to circuit digest big int, but this should not affect the function interface, as bigInt can also be communicated just as Uint256
+		vkFile, err := os.Open("./vk.bin")
 		// we need to do abi decode, here @todo
+		// method := MainABI.Methods["dummyCommitHeaderRangeInput"]
+		// upack, err := method.Inputs.Unpack()
+		circuitDigestBytes, ok := m.Memory().Read(ptr, size)
+		if !ok {
+			return 0
+		}
+		circuitDigestVar := frontend.Variable(new(big.Int).SetBytes(circuitDigestBytes))
 		if err != nil {
 			fmt.Printf("failed to open vk file: %s", err)
 			return 0
 		}
+		digest := poseidon.BN254HashOut(circuitDigestVar)
 		vk := plonk.NewVerifyingKey(ecc.BN254) // this should be done while vm instantiation
 		_, err = vk.ReadFrom(vkFile)
 		if err != nil {
@@ -178,24 +190,35 @@ func main() {
 			return 0
 		}
 		vkFile.Close()
-		data, _ := os.ReadFile("/home/ubuntu/blobstreamx/proofs/output.json")
 		proof := plonk.NewProof(ecc.BN254)
-		_, err = proof.ReadFrom(bytes.NewBuffer(data))
+		_, err = proof.ReadFrom(bytes.NewBuffer(chri.Proof))
 		if err != nil {
 			fmt.Println(err)
 			return 0
 		}
+		inputHash := sha256.Sum256(chri.Input)
+		outputHash := sha256.Sum256(chri.Output)
+		inputHashB := new(big.Int).SetBytes(inputHash[:])
+		outputHashB := new(big.Int).SetBytes(outputHash[:])
+		inputHashM := new(big.Int).And(inputHashB, mask)
+		outputHashM := new(big.Int).And(outputHashB, mask)
+		if inputHashM.BitLen() > 253 || outputHashM.BitLen() > 253 {
+			return 0
+		}
 		assg2 := &Plonky2xVerifierCircuit{
-			VerifierDigest: 1, // replace with generated values
-			InputHash:      2,
-			OutputHash:     3,
+			VerifierDigest: digest,
+			InputHash:      inputHashM,
+			OutputHash:     outputHashM,
 			ProofWithPis:   variables.ProofWithPublicInputs{},
 			VerifierData:   variables.VerifierOnlyCircuitData{},
 		}
 		wit, _ := frontend.NewWitness(assg2, ecc.BN254.ScalarField())
 		pubWit, _ := wit.Public()
-		plonk.Verify(proof, vk, pubWit)
-		return 0
+		err = plonk.Verify(proof, vk, pubWit)
+		if err != nil {
+			return 0
+		}
+		return 1
 	}
 	_, err := r.NewHostModuleBuilder("env").NewFunctionBuilder().
 		WithFunc(stateGetBytesInner).Export("stateGetBytes").
@@ -243,7 +266,7 @@ func main() {
 		os.Exit(4)
 	}
 	fmt.Println(results[0] == 1)
-	chri := CommitHeaderRangeInput{}
+
 	packed, err = abi.ABI.Pack(*MainABI, "dummyCommitHeaderRangeInput", chri)
 	if err != nil {
 		fmt.Print(err)

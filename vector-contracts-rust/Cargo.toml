@@ -5,11 +5,8 @@ edition = "2021"
 author = "manojkgorle"
 
 [dependencies]
-wee_alloc = "0.4.5"
 seq_wasm_sdk = { path = "../sdk" }
-alloy-sol-macro = "0.6.3"
 alloy-sol-types = "0.6.3"
-alloy-primitives = "0.6.3"
 
 [profile.release]
 opt-level = "z"

@@ -1,60 +1,20 @@
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports, unused_variables))]
-extern crate alloc;
-extern crate core;
-extern crate wee_alloc;
 
 pub mod binary_merkle_tree;
 pub mod input_type;
 
-// alloy imports
-pub use alloy_primitives::{
-    fixed_bytes, hex::FromHex, keccak256, Bytes, FixedBytes, Uint, B256, U256, U64,
-};
-use alloy_sol_macro::sol;
-use alloy_sol_types::{SolType, SolValue};
-
 // crate imports
 use input_type::{
-    CommitHeaderRangeInput, InitializerInput, OutputBreaker, UpdateFreezeInput, VAInput,
+    BinaryMerkleProof, CommitHeaderRangeInput, InitializerInput, InputHashPacker, LeafDigestPacker,
+    NodeDigestPacker, OutputBreaker, UpdateFreezeInput, VAInput,
 };
-use state::gnark_verify;
-
-// std lib
-use core::slice;
-pub use std::alloc::{alloc, Layout};
 
 // seq wasm sdk
 pub use seq_wasm_sdk::allocator::*;
+use seq_wasm_sdk::slice;
 use seq_wasm_sdk::state;
 use seq_wasm_sdk::utils::TxContext;
-
-// solidity type decleration begin ----
-sol! {
-    struct DataRootTuple{
-        uint256 height;
-        bytes32 dataRoot;
-    }
-    struct BinaryMerkleProof{
-        bytes32[] sideNodes;
-        uint256 key;
-        uint256 numLeaves;
-    }
-    struct LeafDigestPacker{
-        bytes1 leaf_prefix;
-        bytes data;
-    }
-    struct NodeDigestPacker{
-        bytes1 node_prefix;
-        bytes32 left;
-        bytes32 right;
-    }
-    struct InputHashPacker{
-        uint64 latest_block;
-        bytes32 trusted_header;
-        uint64 target_block;
-    }
-}
-// solidity type decleration ends ----
+use seq_wasm_sdk::{fixed_bytes, sol, Bytes, FixedBytes, FromHex, SolType, SolValue, U256};
 
 // get state variables enum from program vm.
 const STATIC_ISINITIALIZED: u32 = 0;
@@ -107,7 +67,7 @@ pub extern "C" fn update_freeze(tx_context: *const TxContext, ptr: *const u8, le
 #[cfg_attr(all(target_arch = "wasm32"), export_name = "commit_header_range")]
 #[no_mangle]
 pub unsafe extern "C" fn commit_header_range(
-    tx_context: *const TxContext,
+    _: *const TxContext,
     ptr: *const u8,
     len: u32,
 ) -> bool {
@@ -132,12 +92,13 @@ pub unsafe extern "C" fn commit_header_range(
         // proof built on a wrong block
         return false;
     }
-    if gnark_verify(trusted_block, HEADER_RANGE_FUNCTION_ID) {
+    // checking invarients before verifying the proof
+    if target_block <= trusted_block || target_block - trusted_block > DATA_COMMITMENT_MAX {
+        return false;
+    }
+    if state::gnark_verify(HEADER_RANGE_FUNCTION_ID) {
         // valid proof
         let (target_header, data_commitment) = OutputBreaker::decode(&output);
-        if target_block <= trusted_block || target_block - trusted_block > DATA_COMMITMENT_MAX {
-            return false;
-        }
         state::store_mapping_u64_bytes32(
             DYNAMIC_BLOCK_HEIGHT_TO_HEADER_HASH,
             target_block,
@@ -162,11 +123,7 @@ pub unsafe extern "C" fn commit_header_range(
 /// against a posted data commitment.
 #[cfg_attr(all(target_arch = "wasm32"), export_name = "verify_attestation")]
 #[no_mangle]
-pub extern "C" fn verify_attestation(
-    tx_context: *const TxContext,
-    ptr: *const u8,
-    len: u32,
-) -> bool {
+pub extern "C" fn verify_attestation(_: *const TxContext, ptr: *const u8, len: u32) -> bool {
     if is_frozen() && is_initialized() {
         return false;
     }

@@ -12,18 +12,15 @@ extern "C" {
     pub fn get_dynamic_bytes(offset: u32, key: u32) -> u64;
     /// Groth16 verify precompile
     /// Returns 1 if the proof is valid, 0 otherwise
-    /// trusted_block is input. The input of the caller function will be decoded to find input, output, proof
+    /// Simply verifies if the given input, output, proof are valid or invalid.
+    /// There will be nochecks for invarients in the precompile. All the necessary checks needs to be done in the contract itself.
     #[link_name = "gnarkVerify"]
-    pub fn gnark_verify_inner(trusted_block: u64, ptr: u32, size: u32) -> u32;
+    pub fn gnark_verify_inner(ptr: u32, size: u32) -> u32;
 }
 
-pub unsafe fn gnark_verify(trusted_block: u64, header_range_function_id: FixedBytes<32>) -> bool {
+pub unsafe fn gnark_verify(function_id: FixedBytes<32>) -> bool {
     //@todo not all checks need to be made in extern gnark verify. keep that as minimal possible.
-    let valid = gnark_verify_inner(
-        trusted_block,
-        header_range_function_id.as_ptr() as u32,
-        header_range_function_id.len() as u32,
-    );
+    let valid = gnark_verify_inner(function_id.as_ptr() as u32, function_id.len() as u32);
     if valid == 1 {
         true
     } else {
@@ -210,7 +207,7 @@ pub fn store_mapping_u32_bytes32(offset: u32, key: u32, value: FixedBytes<32>) {
     }
     let value_bytes = value.abi_encode();
     unsafe {
-        let pseudo_key = key % 896; // offload this to runtime?? @todo
+        let pseudo_key = key % 896;
         store_dynamic_bytes(
             offset,
             pseudo_key as u32,
@@ -229,6 +226,61 @@ pub fn get_mapping_u32_bytes32(offset: u32, key: u32) -> FixedBytes<32> {
         let ptr_packed = get_dynamic_bytes(offset, pseudo_key as u32);
         let data = slice::from_raw_parts((ptr_packed >> 32) as *mut u8, (ptr_packed as u16).into());
         FixedBytes::from_slice(data)
+    }
+}
+
+pub fn store_mapping_bytes32_bytes32(offset: u32, key: FixedBytes<32>, value: FixedBytes<32>) {
+    if offset == 0 {
+        panic!("offset should not be zero");
+    }
+    let value_bytes = value.abi_encode();
+    unsafe {
+        let pseudo_key = (U256::from_be_bytes(*key) % U256::from(896)).as_limbs()[0];
+        store_dynamic_bytes(
+            offset,
+            pseudo_key as u32,
+            value_bytes.as_ptr() as u32,
+            value_bytes.len() as u32,
+        )
+    };
+}
+
+pub fn get_mapping_bytes32_bytes32(offset: u32, key: FixedBytes<32>) -> FixedBytes<32> {
+    if offset == 0 {
+        panic!("offset should not be zero");
+    }
+    unsafe {
+        let pseudo_key = (U256::from_be_bytes(*key) % U256::from(896)).as_limbs()[0];
+        let ptr_packed = get_dynamic_bytes(offset, pseudo_key as u32);
+        let data = slice::from_raw_parts((ptr_packed >> 32) as *mut u8, (ptr_packed as u16).into());
+        FixedBytes::from_slice(data)
+    }
+}
+
+pub fn store_mapping_bytes32_u32(offset: u32, key: FixedBytes<32>, value: u32) {
+    if offset == 0 {
+        panic!("offset should not be zero");
+    }
+    let value_bytes = value.to_be_bytes();
+    unsafe {
+        let pseudo_key = (U256::from_be_bytes(*key) % U256::from(896)).as_limbs()[0];
+        store_dynamic_bytes(
+            offset,
+            pseudo_key as u32,
+            value_bytes.as_ptr() as u32,
+            value_bytes.len() as u32,
+        )
+    };
+}
+pub fn get_mapping_bytes32_u32(offset: u32, key: FixedBytes<32>) -> u32 {
+    if offset == 0 {
+        panic!("offset should not be zero");
+    }
+    unsafe {
+        let pseudo_key = (U256::from_be_bytes(*key) % U256::from(896)).as_limbs()[0];
+        let ptr_packed = get_dynamic_bytes(offset, pseudo_key as u32);
+        let data = slice::from_raw_parts((ptr_packed >> 32) as *mut u8, (ptr_packed as u16).into());
+        u32::from_be_bytes(data.try_into().unwrap())
     }
 }
 // use enums for state variables & provide enough abstraction

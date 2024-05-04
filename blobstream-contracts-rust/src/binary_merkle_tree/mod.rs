@@ -174,7 +174,7 @@ pub fn node_digest(left: FixedBytes<32>, right: FixedBytes<32>) -> FixedBytes<32
 #[cfg(test)]
 mod test_binary_merkle_tree {
     use super::{leaf_digest, node_digest};
-    use alloy_primitives::{bytes, fixed_bytes};
+    use seq_wasm_sdk::{bytes, fixed_bytes};
     #[test]
     fn test_leaf_digest_empty() {
         let expected =

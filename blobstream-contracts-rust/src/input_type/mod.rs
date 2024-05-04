@@ -1,7 +1,15 @@
 use crate::{slice, sol, FixedBytes, SolType, U256};
-use crate::{BinaryMerkleProof, DataRootTuple};
 
 sol!(
+    struct DataRootTuple{
+        uint256 height;
+        bytes32 dataRoot;
+    }
+    struct BinaryMerkleProof{
+        bytes32[] sideNodes;
+        uint256 key;
+        uint256 numLeaves;
+    }
     struct VAInput {
         uint256 tuple_root_nonce;
         DataRootTuple tuple;
@@ -23,6 +31,20 @@ sol!(
     struct OutputBreaker{
         bytes32 targetHeader;
         bytes32 dataCommitment;
+    }
+    struct LeafDigestPacker{
+        bytes1 leaf_prefix;
+        bytes data;
+    }
+    struct NodeDigestPacker{
+        bytes1 node_prefix;
+        bytes32 left;
+        bytes32 right;
+    }
+    struct InputHashPacker{
+        uint64 latest_block;
+        bytes32 trusted_header;
+        uint64 target_block;
     }
 );
 
