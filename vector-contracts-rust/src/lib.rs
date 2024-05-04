@@ -1,5 +1,7 @@
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports, unused_variables))]
 pub mod input_type;
+use std::str::FromStr;
+
 use input_type::InputPackerRotate;
 use input_type::{
     CommitHeaderRangeInput, InitializerInput, InputHashPacker, KeyPacker, OutputBreaker,
@@ -10,7 +12,7 @@ pub use seq_wasm_sdk::allocator::*;
 use seq_wasm_sdk::slice;
 use seq_wasm_sdk::state;
 use seq_wasm_sdk::utils::TxContext;
-use seq_wasm_sdk::{fixed_bytes, keccak256, sol, FixedBytes, SolType, SolValue};
+use seq_wasm_sdk::{fixed_bytes, keccak256, sol, FixedBytes, SolType, SolValue, U256};
 
 // state variables
 const STATIC_ISINITIALIZED: u32 = 0;
@@ -27,12 +29,6 @@ const DYAMIC_DATA_ROOT_COMMITMENTS: u32 = 4;
 const DYNAMIC_STATE_ROOT_COMMITMENTS: u32 = 5;
 const DYNAMIC_RANGE_START_BLOCKS: u32 = 6;
 
-const HEADER_RANGE_FUNCTION_ID: FixedBytes<32> =
-    //@todo this is dummy header range funciton id.
-    fixed_bytes!("16cb5c45290c8545b9998275c07e7577fa0962bb6e35597c69de570649b7083f");
-const ROTATE_FUNCTION_ID: FixedBytes<32> =
-    //@todo this is dummy rotate funciton id.
-    fixed_bytes!("16cb5c45290c8545b9998275c07e7577fa0962bb6e35597c69de570649b7083f");
 #[cfg_attr(all(target_arch = "wasm32"), export_name = "initializer")]
 #[no_mangle]
 pub extern "C" fn initializer(tx_context: *const TxContext, ptr: *const u8, len: u32) -> bool {
@@ -87,7 +83,7 @@ pub unsafe extern "C" fn commit_header_range(
     if is_frozen() && !is_initialized() {
         return false;
     }
-    let (authority_set_id, target_block, input, output, _proof) =
+    let (authority_set_id, target_block, input, output, proof) =
         CommitHeaderRangeInput::new(ptr, len).unpack();
     let trusted_block = state::get_u32(STATIC_LATESTBLOCK);
     let latest_authority_set_id = state::get_u64(STATIC_LATEST_AUTHORITY_SET_ID);
@@ -124,7 +120,16 @@ pub unsafe extern "C" fn commit_header_range(
         // proof built on a wrong block
         return false;
     }
-    if state::gnark_verify(HEADER_RANGE_FUNCTION_ID) {
+    let header_range_function_id_big_int = U256::from_str(
+        "10310189448205051960894735306968713236725543474929808083983647516402594023487",
+    )
+    .unwrap(); //@todo dummy header range function id big int
+    if state::gnark_verify(
+        input,
+        output.clone(),
+        proof,
+        header_range_function_id_big_int,
+    ) {
         // valid proof
         let (target_header_hash, state_root_commitment, data_root_commitment) =
             OutputBreaker::decode(&output);
@@ -190,7 +195,11 @@ pub unsafe extern "C" fn rotate(_: *const TxContext, ptr: *const u8, len: u32) -
         // proof built on wrong authority set
         return false;
     }
-    if state::gnark_verify(ROTATE_FUNCTION_ID) {
+    let rotate_function_id_big_int = U256::from_str(
+        "10310189448205051960894735306968713236725543474929808083983647516402594023487",
+    )
+    .unwrap(); //@todo dummy rotate function id big int
+    if state::gnark_verify(input, output.clone(), proof, rotate_function_id_big_int) {
         // this particular verifier is not available publicly yet. @todo
         // valid proof
         let new_authority_set_hash = OutputBreakerRotate::decode(&output);

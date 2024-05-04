@@ -87,6 +87,19 @@ var MainMetaData = &bind.MetaData{
 	ABI: "[{\"inputs\":[{\"components\":[{\"internalType\":\"uint64\",\"name\":\"targetBlock\",\"type\":\"uint64\"},{\"internalType\":\"bytes\",\"name\":\"input\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"output\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"proof\",\"type\":\"bytes\"}],\"internalType\":\"structinputs.CommitHeaderRangeInput\",\"name\":\"_c\",\"type\":\"tuple\"}],\"name\":\"dummyCommitHeaderRangeInput\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint64\",\"name\":\"height\",\"type\":\"uint64\"},{\"internalType\":\"bytes32\",\"name\":\"header\",\"type\":\"bytes32\"}],\"internalType\":\"structinputs.InitializerInput\",\"name\":\"_i\",\"type\":\"tuple\"}],\"name\":\"dummyInitializerInput\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"targetHeader\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"dataCommitment\",\"type\":\"bytes32\"}],\"internalType\":\"structinputs.OutputBreaker\",\"name\":\"_o\",\"type\":\"tuple\"}],\"name\":\"dummyOutputBreaker\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"_tupleRootNonce\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"height\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"dataRoot\",\"type\":\"bytes32\"}],\"internalType\":\"structinputs.DataRootTuple\",\"name\":\"_tuple\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"bytes32[]\",\"name\":\"sideNodes\",\"type\":\"bytes32[]\"},{\"internalType\":\"uint256\",\"name\":\"key\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"numLeaves\",\"type\":\"uint256\"}],\"internalType\":\"structinputs.BinaryMerkleProof\",\"name\":\"_proof\",\"type\":\"tuple\"}],\"internalType\":\"structinputs.VerifyAttestationInput\",\"name\":\"_v\",\"type\":\"tuple\"}],\"name\":\"dummyVerifyAttestationInput\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
 }
 
+// GnarkPrecompileGnarkPrecompileInputs is an auto generated low-level Go binding around an user-defined struct.
+type GnarkPrecompileInputs struct {
+	Input            []byte
+	Output           []byte
+	Proof            []byte
+	FunctionIdBigInt *big.Int
+}
+
+// GnarkPrecompMetaData contains all meta data concerning the GnarkPrecomp contract.
+var GnarkPrecompMetaData = &bind.MetaData{
+	ABI: "[{\"inputs\":[{\"components\":[{\"internalType\":\"bytes\",\"name\":\"input\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"output\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"proof\",\"type\":\"bytes\"},{\"internalType\":\"uint256\",\"name\":\"function_id_big_int\",\"type\":\"uint256\"}],\"internalType\":\"structgnarkPrecompile.GnarkPrecompileInputs\",\"name\":\"inputs\",\"type\":\"tuple\"}],\"name\":\"gnarkPrecompileInputsDummyFunction\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+}
+
 // can't load this from the package. why?? plonky2x is not a go module
 
 // We assume that the publicInputs have 64 bytes
@@ -117,6 +130,7 @@ func (c *Plonky2xVerifierCircuit) Define(api frontend.API) error { return nil }
 // MainABI is the input ABI used to generate the binding from.
 // Deprecated: Use MainMetaData.ABI instead.
 var MainABI, _ = MainMetaData.GetAbi() // modified
+var GnarkABI, _ = GnarkPrecompMetaData.GetAbi()
 var mask = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 253), big.NewInt(1))
 
 func main() {
@@ -170,18 +184,23 @@ func main() {
 	gnarkVer := func(ctxInner context.Context, m api.Module, ptr uint32, size uint32) uint32 {
 		// we will switch from circuit digest to circuit digest big int, but this should not affect the function interface, as bigInt can also be communicated just as Uint256
 		vkFile, err := os.Open("./vk.bin")
-		// we need to do abi decode, here @todo
-		// method := MainABI.Methods["dummyCommitHeaderRangeInput"]
-		// upack, err := method.Inputs.Unpack()
-		circuitDigestBytes, ok := m.Memory().Read(ptr, size)
-		if !ok {
-			return 0
-		}
-		circuitDigestVar := frontend.Variable(new(big.Int).SetBytes(circuitDigestBytes))
 		if err != nil {
 			fmt.Printf("failed to open vk file: %s", err)
 			return 0
 		}
+		// read from memory
+		dataBytes, ok := m.Memory().Read(ptr, size)
+		if !ok {
+			return 0
+		}
+		// abi unpack
+		method := GnarkABI.Methods["gnarkPrecompileInputsDummyFunction"]
+		upack, err := method.Inputs.Unpack(dataBytes)
+		if err != nil {
+			return 0
+		}
+		precompInput := upack[0].(*GnarkPrecompileInputs)
+		circuitDigestVar := frontend.Variable(precompInput.FunctionIdBigInt)
 		digest := poseidon.BN254HashOut(circuitDigestVar)
 		vk := plonk.NewVerifyingKey(ecc.BN254) // this should be done while vm instantiation
 		_, err = vk.ReadFrom(vkFile)
@@ -191,13 +210,13 @@ func main() {
 		}
 		vkFile.Close()
 		proof := plonk.NewProof(ecc.BN254)
-		_, err = proof.ReadFrom(bytes.NewBuffer(chri.Proof))
+		_, err = proof.ReadFrom(bytes.NewBuffer(precompInput.Proof))
 		if err != nil {
 			fmt.Println(err)
 			return 0
 		}
-		inputHash := sha256.Sum256(chri.Input)
-		outputHash := sha256.Sum256(chri.Output)
+		inputHash := sha256.Sum256(precompInput.Input)
+		outputHash := sha256.Sum256(precompInput.Output)
 		inputHashB := new(big.Int).SetBytes(inputHash[:])
 		outputHashB := new(big.Int).SetBytes(outputHash[:])
 		inputHashM := new(big.Int).And(inputHashB, mask)

@@ -1,5 +1,5 @@
+use crate::utils::gnarkPrecompileInputs;
 use crate::{slice, FixedBytes, SolValue, U256};
-
 #[link(wasm_import_module = "env")]
 extern "C" {
     #[link_name = "stateStoreBytes"]
@@ -14,13 +14,26 @@ extern "C" {
     /// Returns 1 if the proof is valid, 0 otherwise
     /// Simply verifies if the given input, output, proof are valid or invalid.
     /// There will be nochecks for invarients in the precompile. All the necessary checks needs to be done in the contract itself.
+    /// ptr & size will point to the struct { input , output, proof, function_id_big_int }
     #[link_name = "gnarkVerify"]
     pub fn gnark_verify_inner(ptr: u32, size: u32) -> u32;
 }
 
-pub unsafe fn gnark_verify(function_id: FixedBytes<32>) -> bool {
-    //@todo not all checks need to be made in extern gnark verify. keep that as minimal possible.
-    let valid = gnark_verify_inner(function_id.as_ptr() as u32, function_id.len() as u32);
+pub unsafe fn gnark_verify(
+    input: Vec<u8>,
+    output: Vec<u8>,
+    proof: Vec<u8>,
+    function_id: U256,
+) -> bool {
+    let data = gnarkPrecompileInputs {
+        input,
+        output,
+        proof,
+        headerRangeFunctionIdBigInt: function_id,
+    }
+    .abi_encode();
+
+    let valid = gnark_verify_inner(data.as_ptr() as u32, data.len() as u32);
     if valid == 1 {
         true
     } else {

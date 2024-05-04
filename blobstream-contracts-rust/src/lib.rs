@@ -3,6 +3,8 @@
 pub mod binary_merkle_tree;
 pub mod input_type;
 
+use std::str::FromStr;
+
 // crate imports
 use input_type::{
     BinaryMerkleProof, CommitHeaderRangeInput, InitializerInput, InputHashPacker, LeafDigestPacker,
@@ -30,8 +32,6 @@ const DYNAMIC_STATE_DATA_COMMITMENTS: u32 = 3;
 
 // CONSTANT VARIABLES
 const DATA_COMMITMENT_MAX: u64 = 10_000;
-const HEADER_RANGE_FUNCTION_ID: FixedBytes<32> =
-    fixed_bytes!("16cb5c45290c8545b9998275c07e7577fa0962bb6e35597c69de570649b7083f");
 
 #[cfg_attr(all(target_arch = "wasm32"), export_name = "initializer")]
 #[no_mangle]
@@ -74,7 +74,7 @@ pub unsafe extern "C" fn commit_header_range(
     if is_frozen() && !is_initialized() {
         return false;
     }
-    let (target_block, input, output, _proof) = CommitHeaderRangeInput::new(ptr, len).unpack();
+    let (target_block, input, output, proof) = CommitHeaderRangeInput::new(ptr, len).unpack();
     let trusted_block = state::get_u64(STATIC_LATESTBLOCK);
     let trusted_header =
         state::get_mapping_u64_bytes32(DYNAMIC_BLOCK_HEIGHT_TO_HEADER_HASH, trusted_block);
@@ -96,7 +96,16 @@ pub unsafe extern "C" fn commit_header_range(
     if target_block <= trusted_block || target_block - trusted_block > DATA_COMMITMENT_MAX {
         return false;
     }
-    if state::gnark_verify(HEADER_RANGE_FUNCTION_ID) {
+    let header_range_function_id_big_int = U256::from_str(
+        "10310189448205051960894735306968713236725543474929808083983647516402594023487",
+    )
+    .unwrap();
+    if state::gnark_verify(
+        input,
+        output.clone(),
+        proof,
+        header_range_function_id_big_int,
+    ) {
         // valid proof
         let (target_header, data_commitment) = OutputBreaker::decode(&output);
         state::store_mapping_u64_bytes32(

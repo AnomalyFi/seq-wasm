@@ -12,6 +12,9 @@ Branch X is the implementation of [BlobstreamX](https://github.com/succinctlabs/
 
 - Next header is not implemented in the SEQ version of Blobstream X.
 
+- NOTE: Vector X by succinctlabs is a WIP. Rapid changes happening and a few contracts are not open sourced.
+
+- NOTE: Not sure if verification key is same for both BlobstreamX and vectorX. BlobstreamX uses aleo's key, vectorx??
 TODO:
 - [x] Remove redundent code.
 - [x] Raw blobstream x translation with modifications to contain gateway functionality in itself.
