@@ -5,3 +5,4 @@ solidity-gen
 # Added by cargo
 
 /target
+*.log

@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-blobstream_contracts_rust = { path = "/home/manojkgorle/nodekit/seq-wasm/blobstream-contracts-rust" }
+blobstream_contracts_rust = { path = "../blobstream-contracts-rust" }
 wee_alloc = "0.4.5"
 alloy-primitives = "0.6.3"
 seq_wasm_sdk = { path = "../sdk" }
