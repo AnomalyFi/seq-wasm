@@ -1,0 +1,144 @@
+package main
+
+import (
+	"context"
+	"io/ioutil"
+	"os"
+	"strconv"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+	"github.com/tetratelabs/wazero"
+	"github.com/tetratelabs/wazero/api"
+)
+
+func TestState(t *testing.T) {
+	wasmByte, _ := ioutil.ReadFile("/home/ubuntu/seq-wasm/target/wasm32-unknown-unknown/release/input_types_test.wasm")
+	var allocate_ptr api.Function
+	ctxWasm := context.Background()
+	r := wazero.NewRuntime(ctxWasm)
+	defer r.Close(ctxWasm)
+	mapper := map[string][]byte{
+		"0": {0, 1},
+	}
+
+	stateStoreBytesInner := func(ctxInner context.Context, m api.Module, i uint32, ptr uint32, size uint32) {
+		slot := "slot" + strconv.Itoa(int(i))
+		bytes, ok := m.Memory().Read(ptr, size)
+		if !ok {
+			os.Exit(10)
+		}
+		mapper[slot] = bytes
+	}
+	stateGetBytesInner := func(ctxInner context.Context, m api.Module, i uint32) uint64 {
+		slot := "slot" + strconv.Itoa(int(i))
+		result := mapper[slot]
+		size := uint64(len(result))
+		results, _ := allocate_ptr.Call(ctxInner, size)
+		offset := results[0]
+		m.Memory().Write(uint32(offset), result)
+		return uint64(offset)<<32 | size
+	}
+	stateStoreDynamicBytesInner := func(ctxInner context.Context, m api.Module, offset uint32, key uint32, ptr uint32, size uint32) {
+		i := 128 + (offset*key)%896
+		slot := "slot" + strconv.Itoa(int(i))
+		bytes, ok := m.Memory().Read(ptr, size)
+		if !ok {
+			os.Exit(10)
+		}
+		mapper[slot] = bytes
+	}
+	stateGetDynamicBytesInner := func(ctxInner context.Context, m api.Module, offset uint32, key uint32) uint64 {
+		i := 128 + (offset*key)%896
+		slot := "slot" + strconv.Itoa(int(i))
+		result := mapper[slot]
+		size := uint64(len(result))
+		results, _ := allocate_ptr.Call(ctxInner, size)
+		offset2 := results[0]
+		m.Memory().Write(uint32(offset2), result)
+		return uint64(offset2)<<32 | size
+	}
+	gnarkVer := func(ctxInner context.Context, m api.Module, ptr uint32, size uint32) uint32 {
+		return 1
+	}
+
+	// Instantiate the module
+	_, err := r.NewHostModuleBuilder("env").NewFunctionBuilder().
+		WithFunc(stateGetBytesInner).Export("stateGetBytes").
+		NewFunctionBuilder().WithFunc(stateStoreBytesInner).Export("stateStoreBytes").
+		NewFunctionBuilder().WithFunc(stateStoreDynamicBytesInner).Export("stateStoreDynamicBytes").
+		NewFunctionBuilder().WithFunc(stateGetDynamicBytesInner).Export("stateGetDynamicBytes").
+		NewFunctionBuilder().WithFunc(gnarkVer).Export("gnarkVerify").
+		Instantiate(ctxWasm)
+
+	require.NoError(t, err)
+
+	mod, err := r.Instantiate(ctxWasm, wasmByte)
+	require.NoError(t, err)
+
+	allocate_ptr = mod.ExportedFunction("allocate_ptr")
+	test_store_u256 := mod.ExportedFunction("test_store_u256")
+	test_get_u256 := mod.ExportedFunction("test_get_u256")
+	test_store_u64 := mod.ExportedFunction("test_store_u64")
+	test_get_u64 := mod.ExportedFunction("test_get_u64")
+	test_store_u32 := mod.ExportedFunction("test_store_u32")
+	test_get_u32 := mod.ExportedFunction("test_get_u32")
+	test_store_bool := mod.ExportedFunction("test_store_bool")
+	test_get_bool := mod.ExportedFunction("test_get_bool")
+	test_store_bytes32 := mod.ExportedFunction("test_store_bytes32")
+	test_get_bytes32 := mod.ExportedFunction("test_get_bytes32")
+	test_store_bytes := mod.ExportedFunction("test_store_bytes")
+	test_get_bytes := mod.ExportedFunction("test_get_bytes")
+	test_dynamic := mod.ExportedFunction("test_dynamic")
+	// store and get u256
+	_, err = test_store_u256.Call(ctxWasm)
+	require.NoError(t, err)
+	require.Equal(t, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 123}, mapper["slot1"])
+	result, err := test_get_u256.Call(ctxWasm)
+	require.NoError(t, err)
+	require.Equal(t, result[0], uint64(1))
+
+	// store and get u64
+	_, err = test_store_u64.Call(ctxWasm)
+	require.NoError(t, err)
+	require.Equal(t, []byte{0, 0, 0, 0, 0, 0, 0, 123}, mapper["slot3"])
+	result, err = test_get_u64.Call(ctxWasm)
+	require.NoError(t, err)
+	require.Equal(t, result[0], uint64(1))
+
+	// store and get u32
+	_, err = test_store_u32.Call(ctxWasm)
+	require.NoError(t, err)
+	require.Equal(t, []byte{0, 0, 0, 123}, mapper["slot5"])
+	result, err = test_get_u32.Call(ctxWasm)
+	require.NoError(t, err)
+	require.Equal(t, result[0], uint64(1))
+
+	// store and get bool
+	_, err = test_store_bool.Call(ctxWasm)
+	require.NoError(t, err)
+	require.Equal(t, []byte{0, 0, 0, 1}, mapper["slot7"])
+	result, err = test_get_bool.Call(ctxWasm)
+	require.NoError(t, err)
+	require.Equal(t, result[0], uint64(1))
+
+	// store and get bytes32
+	_, err = test_store_bytes32.Call(ctxWasm)
+	require.NoError(t, err)
+	require.Equal(t, []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, mapper["slot9"])
+	result, err = test_get_bytes32.Call(ctxWasm)
+	require.NoError(t, err)
+	require.Equal(t, result[0], uint64(1))
+
+	// store and get bytes
+	_, err = test_store_bytes.Call(ctxWasm)
+	require.NoError(t, err)
+	require.Equal(t, []byte{1, 2, 3}, mapper["slot11"])
+	result, err = test_get_bytes.Call(ctxWasm)
+	require.NoError(t, err)
+	require.Equal(t, result[0], uint64(1))
+
+	_, err = test_dynamic.Call(ctxWasm)
+	require.NoError(t, err)
+	require.Equal(t, []byte{1, 2, 3}, mapper["slot136"])
+}

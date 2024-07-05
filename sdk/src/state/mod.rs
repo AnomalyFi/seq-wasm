@@ -1,5 +1,5 @@
 use crate::utils::gnarkPrecompileInputs;
-use crate::{slice, FixedBytes, SolValue, U256};
+use crate::{slice, Address, FixedBytes, SolValue, U256};
 #[link(wasm_import_module = "env")]
 extern "C" {
     #[link_name = "stateStoreBytes"]
@@ -10,26 +10,26 @@ extern "C" {
     pub fn store_dynamic_bytes(offset: u32, key: u32, ptr: u32, size: u32);
     #[link_name = "stateGetDynamicBytes"]
     pub fn get_dynamic_bytes(offset: u32, key: u32) -> u64;
-    /// Groth16 verify precompile
-    /// Returns 1 if the proof is valid, 0 otherwise
-    /// Simply verifies if the given input, output, proof are valid or invalid.
-    /// There will be nochecks for invarients in the precompile. All the necessary checks needs to be done in the contract itself.
-    /// ptr & size will point to the struct { input , output, proof, function_id_big_int }
+    /// SP1 plonk verify precompile.
+    /// Returns 1 for valid proof, 0 otherwise.
+    /// Verifies the proof and public values without any checks for invarients.
+    /// Invarient checks should be performed before calling the precompile..
+    /// ptr & size are of the struct `gnarkPrecompileInputs`
     #[link_name = "gnarkVerify"]
     pub fn gnark_verify_inner(ptr: u32, size: u32) -> u32;
 }
 
 pub unsafe fn gnark_verify(
-    input: Vec<u8>,
-    output: Vec<u8>,
+    program_vkey_hash: FixedBytes<32>,
+    public_values: Vec<u8>,
     proof: Vec<u8>,
-    function_id: U256,
+    program_vkey: Vec<u8>,
 ) -> bool {
     let data = gnarkPrecompileInputs {
-        input,
-        output,
-        proof,
-        headerRangeFunctionIdBigInt: function_id,
+        programVKeyHash: program_vkey_hash,
+        publicValues: public_values,
+        proofBytes: proof,
+        programVKey: program_vkey,
     }
     .abi_encode();
 
@@ -43,23 +43,28 @@ pub unsafe fn gnark_verify(
 
 pub fn store_u256(variable: u32, value: U256) {
     let value_bytes = value.to_be_bytes_vec();
+    let ptr = value_bytes.as_ptr() as u32;
+    let len = value_bytes.len() as u32;
+    std::mem::forget(value_bytes);
     unsafe {
-        store_bytes(
-            variable,
-            value_bytes.as_ptr() as u32,
-            value_bytes.len() as u32,
-        );
+        store_bytes(variable, ptr, len);
+    }
+}
+
+pub fn get_u256(variable: u32) -> U256 {
+    unsafe {
+        let ptr_packed = get_bytes(variable);
+        let data = slice::from_raw_parts((ptr_packed >> 32) as *mut u8, (ptr_packed as u16).into());
+        U256::from_be_slice(data)
     }
 }
 
 pub fn store_u64(variable: u32, value: u64) {
     let value_bytes = value.to_be_bytes();
+    let ptr = value_bytes.as_ptr() as u32;
+    let len = value_bytes.len() as u32;
     unsafe {
-        store_bytes(
-            variable,
-            value_bytes.as_ptr() as u32,
-            value_bytes.len() as u32,
-        );
+        store_bytes(variable, ptr, len);
     }
 }
 
@@ -73,6 +78,8 @@ pub fn get_u64(variable: u32) -> u64 {
 
 pub fn store_u32(variable: u32, value: u32) {
     let value_bytes = value.to_be_bytes();
+    let ptr = value_bytes.as_ptr() as u32;
+    let len = value_bytes.len() as u32;
     unsafe {
         store_bytes(
             variable,
@@ -90,22 +97,13 @@ pub fn get_u32(variable: u32) -> u32 {
     }
 }
 
-pub fn get_u256(variable: u32) -> U256 {
-    unsafe {
-        let ptr_packed = get_bytes(variable);
-        let data = slice::from_raw_parts((ptr_packed >> 32) as *mut u8, (ptr_packed as u16).into());
-        U256::from_be_slice(data)
-    }
-}
-
 pub fn store_bytes32(variable: u32, value: FixedBytes<32>) {
     let value_bytes = value.abi_encode();
+    let ptr = value_bytes.as_ptr() as u32;
+    let len = value_bytes.len() as u32;
+    std::mem::forget(value_bytes);
     unsafe {
-        store_bytes(
-            variable,
-            value_bytes.as_ptr() as u32,
-            value_bytes.len() as u32,
-        );
+        store_bytes(variable, ptr, len);
     }
 }
 
@@ -117,9 +115,31 @@ pub fn get_bytes32(variable: u32) -> FixedBytes<32> {
     }
 }
 
-pub fn store_vec(variable: u32, data: &[u8]) {
+pub fn store_address(variable: u32, value: Address) {
+    let value_bytes = value.abi_encode();
+    let ptr = value_bytes.as_ptr() as u32;
+    let len = value_bytes.len() as u32;
+    std::mem::forget(value_bytes);
     unsafe {
-        store_bytes(variable, data.as_ptr() as u32, data.len() as u32);
+        store_bytes(variable, ptr, len);
+    }
+}
+
+pub fn get_address(variable: u32) -> Address {
+    unsafe {
+        let ptr_packed = get_bytes(variable);
+        let data = slice::from_raw_parts((ptr_packed >> 32) as *mut u8, (ptr_packed as u16).into());
+        Address::from_slice(data)
+    }
+}
+
+pub fn store_vec(variable: u32, vector: &[u8]) {
+    let vector = vector.to_vec();
+    let ptr = vector.as_ptr() as u32;
+    let len = vector.len() as u32;
+    std::mem::forget(vector);
+    unsafe {
+        store_bytes(variable, ptr, len);
     }
 }
 
@@ -130,23 +150,21 @@ pub fn get_vec(variable: u32) -> Vec<u8> {
         data.to_vec()
     }
 }
+
 pub fn store_bool(variable: u32, value: u32) {
     let value_bytes = if value == 0 {
         0_u32.to_be_bytes()
     } else {
         1_u32.to_be_bytes()
     };
+    let ptr = value_bytes.as_ptr() as u32;
+    let len = value_bytes.len() as u32;
     unsafe {
-        store_bytes(
-            variable,
-            value_bytes.as_ptr() as u32,
-            value_bytes.len() as u32,
-        );
+        store_bytes(variable, ptr, len);
     }
 }
 
 pub fn get_bool(variable: u32) -> u32 {
-    //@todo revamp
     unsafe {
         let ptr_packed = get_bytes(variable);
         let data = slice::from_raw_parts((ptr_packed >> 32) as *mut u8, (ptr_packed as u16).into());
@@ -163,14 +181,12 @@ pub fn store_mapping_u256_bytes32(offset: u32, key: U256, value: FixedBytes<32>)
         panic!("offset should not be zero");
     }
     let value_bytes = value.abi_encode();
+    let ptr = value_bytes.as_ptr() as u32;
+    let len = value_bytes.len() as u32;
+    std::mem::forget(value_bytes);
     unsafe {
         let pseudo_key = (key % U256::from(896)).as_limbs()[0]; // offload this to runtime?? @todo
-        store_dynamic_bytes(
-            offset,
-            pseudo_key as u32,
-            value_bytes.as_ptr() as u32,
-            value_bytes.len() as u32,
-        )
+        store_dynamic_bytes(offset, pseudo_key as u32, ptr, len)
     };
 }
 
@@ -191,14 +207,12 @@ pub fn store_mapping_u64_bytes32(offset: u32, key: u64, value: FixedBytes<32>) {
         panic!("offset should not be zero");
     }
     let value_bytes = value.abi_encode();
+    let ptr = value_bytes.as_ptr() as u32;
+    let len = value_bytes.len() as u32;
+    std::mem::forget(value_bytes);
     unsafe {
         let pseudo_key = key % 896; // offload this to runtime?? @todo
-        store_dynamic_bytes(
-            offset,
-            pseudo_key as u32,
-            value_bytes.as_ptr() as u32,
-            value_bytes.len() as u32,
-        )
+        store_dynamic_bytes(offset, pseudo_key as u32, ptr, len)
     };
 }
 
@@ -219,14 +233,12 @@ pub fn store_mapping_u32_bytes32(offset: u32, key: u32, value: FixedBytes<32>) {
         panic!("offset should not be zero");
     }
     let value_bytes = value.abi_encode();
+    let ptr = value_bytes.as_ptr() as u32;
+    let len = value_bytes.len() as u32;
+    std::mem::forget(value_bytes);
     unsafe {
         let pseudo_key = key % 896;
-        store_dynamic_bytes(
-            offset,
-            pseudo_key as u32,
-            value_bytes.as_ptr() as u32,
-            value_bytes.len() as u32,
-        )
+        store_dynamic_bytes(offset, pseudo_key as u32, ptr, len)
     };
 }
 
@@ -247,14 +259,12 @@ pub fn store_mapping_bytes32_bytes32(offset: u32, key: FixedBytes<32>, value: Fi
         panic!("offset should not be zero");
     }
     let value_bytes = value.abi_encode();
+    let ptr = value_bytes.as_ptr() as u32;
+    let len = value_bytes.len() as u32;
+    std::mem::forget(value_bytes);
     unsafe {
         let pseudo_key = (U256::from_be_bytes(*key) % U256::from(896)).as_limbs()[0];
-        store_dynamic_bytes(
-            offset,
-            pseudo_key as u32,
-            value_bytes.as_ptr() as u32,
-            value_bytes.len() as u32,
-        )
+        store_dynamic_bytes(offset, pseudo_key as u32, ptr, len)
     };
 }
 
@@ -275,14 +285,12 @@ pub fn store_mapping_bytes32_u32(offset: u32, key: FixedBytes<32>, value: u32) {
         panic!("offset should not be zero");
     }
     let value_bytes = value.to_be_bytes();
+    let ptr = value_bytes.as_ptr() as u32;
+    let len = value_bytes.len() as u32;
+    // std::mem::forget(value_bytes);
     unsafe {
         let pseudo_key = (U256::from_be_bytes(*key) % U256::from(896)).as_limbs()[0];
-        store_dynamic_bytes(
-            offset,
-            pseudo_key as u32,
-            value_bytes.as_ptr() as u32,
-            value_bytes.len() as u32,
-        )
+        store_dynamic_bytes(offset, pseudo_key as u32, ptr, len)
     };
 }
 pub fn get_mapping_bytes32_u32(offset: u32, key: FixedBytes<32>) -> u32 {
@@ -299,15 +307,6 @@ pub fn get_mapping_bytes32_u32(offset: u32, key: FixedBytes<32>) -> u32 {
 // use enums for state variables & provide enough abstraction
 
 // Storage layout:
-// # storage keys: 1024(default) --> # of storage keys accesible by the contract
-// # static keys: 128(default) --> # of storage keys allocated for static varialbes(Uint256, Bytes32...)
-// # dynamic keys: 896(default) --> # of storage keys allocated for dynamic types --> mapping, arrays --> after 896 keys are utilised, keys are wrapped to 129 again(clock arithmatic)
-// # of storage keys and allocation of storage keys are set during contract deployement. Can be modified by SEQ midway on necessary(ex: when celestia is out)
-
-// for celestia's blobstream case:
-// 3 static variables --> state_lastValidatorSetCheckPoint, state_powerThereshold, state_eventNonce
-// 1 dynamic variable type --> mapping(uint256 => bytes32) state_dataRootTupleRoots
-// this encourages validators to post blocks as early as possible.
-
-// check how frequently celestia posts block roots to ethereum?? -> every 300 blocks.
-// @todo
+// # storage keys: 2048(default) --> # of storage keys allocated to the contract.
+// # static keys: 128(default) --> # of storage keys allocated for static types.
+// # dynamic keys: 1920(default) --> # of storage keys allocated for dynamic types --> mapping, arrays etc.

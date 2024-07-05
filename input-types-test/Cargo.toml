@@ -10,6 +10,7 @@ blobstream_contracts_rust = { path = "../blobstream-contracts-rust" }
 wee_alloc = "0.4.5"
 alloy-primitives = "0.6.3"
 seq_wasm_sdk = { path = "../sdk" }
+
 [profile.release]
 opt-level = "z"
 lto = true

@@ -22,9 +22,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/succinctlabs/gnark-plonky2-verifier/poseidon"
-	gtype "github.com/succinctlabs/gnark-plonky2-verifier/types"
-	"github.com/succinctlabs/gnark-plonky2-verifier/variables"
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"
 )
@@ -87,51 +84,46 @@ var MainMetaData = &bind.MetaData{
 	ABI: "[{\"inputs\":[{\"components\":[{\"internalType\":\"uint64\",\"name\":\"targetBlock\",\"type\":\"uint64\"},{\"internalType\":\"bytes\",\"name\":\"input\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"output\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"proof\",\"type\":\"bytes\"}],\"internalType\":\"structinputs.CommitHeaderRangeInput\",\"name\":\"_c\",\"type\":\"tuple\"}],\"name\":\"dummyCommitHeaderRangeInput\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint64\",\"name\":\"height\",\"type\":\"uint64\"},{\"internalType\":\"bytes32\",\"name\":\"header\",\"type\":\"bytes32\"}],\"internalType\":\"structinputs.InitializerInput\",\"name\":\"_i\",\"type\":\"tuple\"}],\"name\":\"dummyInitializerInput\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"targetHeader\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"dataCommitment\",\"type\":\"bytes32\"}],\"internalType\":\"structinputs.OutputBreaker\",\"name\":\"_o\",\"type\":\"tuple\"}],\"name\":\"dummyOutputBreaker\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"_tupleRootNonce\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"height\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"dataRoot\",\"type\":\"bytes32\"}],\"internalType\":\"structinputs.DataRootTuple\",\"name\":\"_tuple\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"bytes32[]\",\"name\":\"sideNodes\",\"type\":\"bytes32[]\"},{\"internalType\":\"uint256\",\"name\":\"key\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"numLeaves\",\"type\":\"uint256\"}],\"internalType\":\"structinputs.BinaryMerkleProof\",\"name\":\"_proof\",\"type\":\"tuple\"}],\"internalType\":\"structinputs.VerifyAttestationInput\",\"name\":\"_v\",\"type\":\"tuple\"}],\"name\":\"dummyVerifyAttestationInput\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
 }
 
-// GnarkPrecompileGnarkPrecompileInputs is an auto generated low-level Go binding around an user-defined struct.
+// SolGengnarkPrecompileInputs is an auto generated low-level Go binding around an user-defined struct.
 type GnarkPrecompileInputs struct {
-	Input            []byte
-	Output           []byte
-	Proof            []byte
-	FunctionIdBigInt *big.Int
+	ProgramVKeyHash [32]byte
+	PublicValues    []byte
+	ProofBytes      []byte
+	ProgramVKey     []byte
 }
 
-// GnarkPrecompMetaData contains all meta data concerning the GnarkPrecomp contract.
-var GnarkPrecompMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[{\"components\":[{\"internalType\":\"bytes\",\"name\":\"input\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"output\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"proof\",\"type\":\"bytes\"},{\"internalType\":\"uint256\",\"name\":\"function_id_big_int\",\"type\":\"uint256\"}],\"internalType\":\"structgnarkPrecompile.GnarkPrecompileInputs\",\"name\":\"inputs\",\"type\":\"tuple\"}],\"name\":\"gnarkPrecompileInputsDummyFunction\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+// GnarkPreCompileMetaData contains all meta data concerning the SolGen contract.
+var GnarkPreCompileMetaData = &bind.MetaData{
+	ABI: "[{\"inputs\":[{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"programVKeyHash\",\"type\":\"bytes32\"},{\"internalType\":\"bytes\",\"name\":\"publicValues\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"proofBytes\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"programVKey\",\"type\":\"bytes\"}],\"internalType\":\"structSolGen.gnarkPrecompileInputs\",\"name\":\"inputs\",\"type\":\"tuple\"}],\"name\":\"gnarkPrecompile\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
 }
-
-// can't load this from the package. why?? plonky2x is not a go module
-
-// We assume that the publicInputs have 64 bytes
-// publicInputs[0:32] is a big-endian representation of a SHA256 hash that has been truncated to 253 bits.
-// Note that this truncation happens in the `WrappedCircuit` when computing the `input_hash`
-// The reason for truncation is that we only want 1 public input on-chain for the input hash
-// to save on gas costs
-type Plonky2xVerifierCircuit struct {
-	// A digest of the plonky2x circuit that is being verified.
-	VerifierDigest frontend.Variable `gnark:"verifierDigest,public"`
-
-	// The input hash is the hash of all onchain inputs into the function.
-	InputHash frontend.Variable `gnark:"inputHash,public"`
-
-	// The output hash is the hash of all outputs from the function.
-	OutputHash frontend.Variable `gnark:"outputHash,public"`
-
-	// Private inputs to the circuit
-	ProofWithPis variables.ProofWithPublicInputs
-	VerifierData variables.VerifierOnlyCircuitData
-
-	// Circuit configuration that is not part of the circuit itself.
-	CommonCircuitData gtype.CommonCircuitData `gnark:"-"`
-}
-
-func (c *Plonky2xVerifierCircuit) Define(api frontend.API) error { return nil }
 
 // MainABI is the input ABI used to generate the binding from.
 // Deprecated: Use MainMetaData.ABI instead.
 var MainABI, _ = MainMetaData.GetAbi() // modified
-var GnarkABI, _ = GnarkPrecompMetaData.GetAbi()
+// var GnarkABI, _ = GnarkPrecompMetaData.GetAbi()
+var GnarkPreCompileABI, _ = GnarkPreCompileMetaData.GetAbi()
 var mask = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 253), big.NewInt(1))
+
+type SP1Circuit struct {
+	VkeyHash             frontend.Variable `gnark:",public"`
+	CommitedValuesDigest frontend.Variable `gnark:",public"`
+	Vars                 []frontend.Variable
+	Felts                []babybearVariable
+	Exts                 []babybearExtensionVariable
+}
+
+func (*SP1Circuit) Define(frontend.API) error {
+	return nil
+}
+
+type babybearVariable struct {
+	Value  frontend.Variable
+	NbBits uint
+}
+
+type babybearExtensionVariable struct {
+	Value [4]babybearVariable
+}
 
 func main() {
 	wasmByte, _ := ioutil.ReadFile("/home/manojkgorle/nodekit/seq-wasm/blobstream-contracts-rust/target/wasm32-unknown-unknown/release/blobstream_contracts_rust.wasm")
@@ -155,7 +147,6 @@ func main() {
 	stateStoreBytesInner := func(ctxInner context.Context, m api.Module, i uint32, ptr uint32, size uint32) {
 		slot := "slot" + strconv.Itoa(int(i))
 		bytes, ok := m.Memory().Read(ptr, size)
-		// fmt.Println(bytes)
 		if !ok {
 			os.Exit(10)
 		}
@@ -182,56 +173,46 @@ func main() {
 		mapper[slot] = bytes
 	}
 	gnarkVer := func(ctxInner context.Context, m api.Module, ptr uint32, size uint32) uint32 {
-		// we will switch from circuit digest to circuit digest big int, but this should not affect the function interface, as bigInt can also be communicated just as Uint256
-		vkFile, err := os.Open("./vk.bin")
-		if err != nil {
-			fmt.Printf("failed to open vk file: %s", err)
-			return 0
-		}
 		// read from memory
 		dataBytes, ok := m.Memory().Read(ptr, size)
 		if !ok {
 			return 0
 		}
-		// abi unpack
-		method := GnarkABI.Methods["gnarkPrecompileInputsDummyFunction"]
+		// abi unpack the data
+		method := GnarkPreCompileABI.Methods["gnarkPrecompile"]
 		upack, err := method.Inputs.Unpack(dataBytes)
 		if err != nil {
 			return 0
 		}
-		precompInput := upack[0].(*GnarkPrecompileInputs)
-		circuitDigestVar := frontend.Variable(precompInput.FunctionIdBigInt)
-		digest := poseidon.BN254HashOut(circuitDigestVar)
-		vk := plonk.NewVerifyingKey(ecc.BN254) // this should be done while vm instantiation
-		_, err = vk.ReadFrom(vkFile)
+		preCompileInput := upack[0].(*GnarkPrecompileInputs)
+		publicValuesHash := sha256.Sum256(preCompileInput.PublicValues)
+		publicValuesB := new(big.Int).SetBytes(publicValuesHash[:])
+		publicValuesM := new(big.Int).And(publicValuesB, mask)
+		if publicValuesM.BitLen() > 253 {
+			return 0
+		}
+		sp1Circuit := SP1Circuit{
+			Vars:                 []frontend.Variable{},
+			Felts:                []babybearVariable{},
+			Exts:                 []babybearExtensionVariable{},
+			VkeyHash:             preCompileInput.ProgramVKey,
+			CommitedValuesDigest: publicValuesM,
+		}
+
+		vk := plonk.NewVerifyingKey(ecc.BN254)
+		_, err = vk.ReadFrom(bytes.NewBuffer(preCompileInput.ProgramVKey))
 		if err != nil {
 			fmt.Printf("failed to read vk file: %s", err)
 			return 0
 		}
-		vkFile.Close()
+
 		proof := plonk.NewProof(ecc.BN254)
-		_, err = proof.ReadFrom(bytes.NewBuffer(precompInput.Proof))
+		_, err = proof.ReadFrom(bytes.NewBuffer(preCompileInput.ProofBytes))
 		if err != nil {
 			fmt.Println(err)
 			return 0
 		}
-		inputHash := sha256.Sum256(precompInput.Input)
-		outputHash := sha256.Sum256(precompInput.Output)
-		inputHashB := new(big.Int).SetBytes(inputHash[:])
-		outputHashB := new(big.Int).SetBytes(outputHash[:])
-		inputHashM := new(big.Int).And(inputHashB, mask)
-		outputHashM := new(big.Int).And(outputHashB, mask)
-		if inputHashM.BitLen() > 253 || outputHashM.BitLen() > 253 {
-			return 0
-		}
-		assg2 := &Plonky2xVerifierCircuit{
-			VerifierDigest: digest,
-			InputHash:      inputHashM,
-			OutputHash:     outputHashM,
-			ProofWithPis:   variables.ProofWithPublicInputs{},
-			VerifierData:   variables.VerifierOnlyCircuitData{},
-		}
-		wit, _ := frontend.NewWitness(assg2, ecc.BN254.ScalarField())
+		wit, _ := frontend.NewWitness(&sp1Circuit, ecc.BN254.ScalarField())
 		pubWit, _ := wit.Public()
 		err = plonk.Verify(proof, vk, pubWit)
 		if err != nil {
@@ -239,6 +220,8 @@ func main() {
 		}
 		return 1
 	}
+
+	// Instantiate the module
 	_, err := r.NewHostModuleBuilder("env").NewFunctionBuilder().
 		WithFunc(stateGetBytesInner).Export("stateGetBytes").
 		NewFunctionBuilder().WithFunc(stateStoreBytesInner).Export("stateStoreBytes").

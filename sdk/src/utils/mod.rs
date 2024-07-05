@@ -20,9 +20,9 @@ pub unsafe fn ptr_to_address_bytes(ptr: u32, len: u32) -> Vec<u8> {
 
 sol!(
     struct gnarkPrecompileInputs{
-        bytes input;
-        bytes output;
-        bytes proof;
-        uint256 headerRangeFunctionIdBigInt;
+        bytes32 programVKeyHash;
+        bytes publicValues;
+        bytes proofBytes;
+        bytes programVKey;
     }
 );
