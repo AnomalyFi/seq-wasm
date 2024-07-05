@@ -7,9 +7,9 @@ extern "C" {
     #[link_name = "stateGetBytes"]
     pub fn get_bytes(slot: u32) -> u64;
     #[link_name = "stateStoreDynamicBytes"]
-    pub fn store_dynamic_bytes(offset: u32, key: u32, ptr: u32, size: u32);
+    pub fn store_dynamic_bytes(id: u32, ptr_of_key: u32, size_of_key: u32, ptr: u32, size: u32);
     #[link_name = "stateGetDynamicBytes"]
-    pub fn get_dynamic_bytes(offset: u32, key: u32) -> u64;
+    pub fn get_dynamic_bytes(id: u32, ptr_of_key: u32, size_of_key: u32) -> u64;
     /// SP1 plonk verify precompile.
     /// Returns 1 for valid proof, 0 otherwise.
     /// Verifies the proof and public values without any checks for invarients.
@@ -81,11 +81,7 @@ pub fn store_u32(variable: u32, value: u32) {
     let ptr = value_bytes.as_ptr() as u32;
     let len = value_bytes.len() as u32;
     unsafe {
-        store_bytes(
-            variable,
-            value_bytes.as_ptr() as u32,
-            value_bytes.len() as u32,
-        );
+        store_bytes(variable, ptr, len);
     }
 }
 
@@ -176,137 +172,134 @@ pub fn get_bool(variable: u32) -> u32 {
     }
 }
 
-pub fn store_mapping_u256_bytes32(offset: u32, key: U256, value: FixedBytes<32>) {
-    if offset == 0 {
-        panic!("offset should not be zero");
-    }
+pub fn store_mapping_u256_bytes32(id: u32, key: U256, value: FixedBytes<32>) {
+    // get ptr and len of key. forget the key.
+    let key = key.to_be_bytes_vec();
+    let ptr_key = key.as_ptr() as u32;
+    let len_key = key.len() as u32;
+    std::mem::forget(key);
+
+    // get ptr and len of value. forget the value.
     let value_bytes = value.abi_encode();
     let ptr = value_bytes.as_ptr() as u32;
     let len = value_bytes.len() as u32;
     std::mem::forget(value_bytes);
-    unsafe {
-        let pseudo_key = (key % U256::from(896)).as_limbs()[0]; // offload this to runtime?? @todo
-        store_dynamic_bytes(offset, pseudo_key as u32, ptr, len)
-    };
+
+    unsafe { store_dynamic_bytes(id, ptr_key, len_key, ptr, len) };
 }
 
-pub fn get_mapping_u256_bytes32(offset: u32, key: U256) -> FixedBytes<32> {
-    if offset == 0 {
-        panic!("offset should not be zero");
-    }
+pub fn get_mapping_u256_bytes32(id: u32, key: U256) -> FixedBytes<32> {
+    // get ptr and len of key. forget the key.
+    let key = key.to_be_bytes_vec();
+    let ptr_key = key.as_ptr() as u32;
+    let len_key = key.len() as u32;
+    std::mem::forget(key);
+
     unsafe {
-        let pseudo_key = (key % U256::from(896)).as_limbs()[0];
-        let ptr_packed = get_dynamic_bytes(offset, pseudo_key as u32);
+        let ptr_packed = get_dynamic_bytes(id, ptr_key, len_key);
         let data = slice::from_raw_parts((ptr_packed >> 32) as *mut u8, (ptr_packed as u16).into());
         FixedBytes::from_slice(data)
     }
 }
 
-pub fn store_mapping_u64_bytes32(offset: u32, key: u64, value: FixedBytes<32>) {
-    if offset == 0 {
-        panic!("offset should not be zero");
-    }
+pub fn store_mapping_u64_bytes32(id: u32, key: u64, value: FixedBytes<32>) {
+    let key = key.to_be_bytes();
+    let ptr_key = key.as_ptr() as u32;
+    let len_key = key.len() as u32;
+
+    // get ptr and len of value. forget the value.
     let value_bytes = value.abi_encode();
     let ptr = value_bytes.as_ptr() as u32;
     let len = value_bytes.len() as u32;
     std::mem::forget(value_bytes);
-    unsafe {
-        let pseudo_key = key % 896; // offload this to runtime?? @todo
-        store_dynamic_bytes(offset, pseudo_key as u32, ptr, len)
-    };
+
+    unsafe { store_dynamic_bytes(id, ptr_key, len_key, ptr, len) };
 }
 
-pub fn get_mapping_u64_bytes32(offset: u32, key: u64) -> FixedBytes<32> {
-    if offset == 0 {
-        panic!("offset should not be zero");
-    }
+pub fn get_mapping_u64_bytes32(id: u32, key: u64) -> FixedBytes<32> {
+    let key = key.to_be_bytes();
+    let ptr_key = key.as_ptr() as u32;
+    let len_key = key.len() as u32;
+
     unsafe {
-        let pseudo_key = key % 896;
-        let ptr_packed = get_dynamic_bytes(offset, pseudo_key as u32);
+        let ptr_packed = get_dynamic_bytes(id, ptr_key, len_key);
         let data = slice::from_raw_parts((ptr_packed >> 32) as *mut u8, (ptr_packed as u16).into());
         FixedBytes::from_slice(data)
     }
 }
 
-pub fn store_mapping_u32_bytes32(offset: u32, key: u32, value: FixedBytes<32>) {
-    if offset == 0 {
-        panic!("offset should not be zero");
-    }
+pub fn store_mapping_u32_bytes32(id: u32, key: u32, value: FixedBytes<32>) {
+    let key = key.to_be_bytes();
+    let ptr_key = key.as_ptr() as u32;
+    let len_key = key.len() as u32;
+
     let value_bytes = value.abi_encode();
     let ptr = value_bytes.as_ptr() as u32;
     let len = value_bytes.len() as u32;
     std::mem::forget(value_bytes);
-    unsafe {
-        let pseudo_key = key % 896;
-        store_dynamic_bytes(offset, pseudo_key as u32, ptr, len)
-    };
+    unsafe { store_dynamic_bytes(id, ptr_key, len_key, ptr, len) };
 }
 
-pub fn get_mapping_u32_bytes32(offset: u32, key: u32) -> FixedBytes<32> {
-    if offset == 0 {
-        panic!("offset should not be zero");
-    }
+pub fn get_mapping_u32_bytes32(id: u32, key: u32) -> FixedBytes<32> {
+    let key = key.to_be_bytes();
+    let ptr_key = key.as_ptr() as u32;
+    let len_key = key.len() as u32;
+
     unsafe {
-        let pseudo_key = key % 896;
-        let ptr_packed = get_dynamic_bytes(offset, pseudo_key as u32);
+        let ptr_packed = get_dynamic_bytes(id, ptr_key, len_key);
         let data = slice::from_raw_parts((ptr_packed >> 32) as *mut u8, (ptr_packed as u16).into());
         FixedBytes::from_slice(data)
     }
 }
 
-pub fn store_mapping_bytes32_bytes32(offset: u32, key: FixedBytes<32>, value: FixedBytes<32>) {
-    if offset == 0 {
-        panic!("offset should not be zero");
-    }
+pub fn store_mapping_bytes32_bytes32(id: u32, key: FixedBytes<32>, value: FixedBytes<32>) {
+    let key = key.abi_encode();
+    let ptr_key = key.as_ptr() as u32;
+    let len_key = key.len() as u32;
+    std::mem::forget(key);
+
     let value_bytes = value.abi_encode();
     let ptr = value_bytes.as_ptr() as u32;
     let len = value_bytes.len() as u32;
     std::mem::forget(value_bytes);
-    unsafe {
-        let pseudo_key = (U256::from_be_bytes(*key) % U256::from(896)).as_limbs()[0];
-        store_dynamic_bytes(offset, pseudo_key as u32, ptr, len)
-    };
+    unsafe { store_dynamic_bytes(id, ptr_key, len_key, ptr, len) };
 }
 
-pub fn get_mapping_bytes32_bytes32(offset: u32, key: FixedBytes<32>) -> FixedBytes<32> {
-    if offset == 0 {
-        panic!("offset should not be zero");
-    }
+pub fn get_mapping_bytes32_bytes32(id: u32, key: FixedBytes<32>) -> FixedBytes<32> {
+    let key = key.abi_encode();
+    let ptr_key = key.as_ptr() as u32;
+    let len_key = key.len() as u32;
+    std::mem::forget(key);
+
     unsafe {
-        let pseudo_key = (U256::from_be_bytes(*key) % U256::from(896)).as_limbs()[0];
-        let ptr_packed = get_dynamic_bytes(offset, pseudo_key as u32);
+        let ptr_packed = get_dynamic_bytes(id, ptr_key, len_key);
         let data = slice::from_raw_parts((ptr_packed >> 32) as *mut u8, (ptr_packed as u16).into());
         FixedBytes::from_slice(data)
     }
 }
 
-pub fn store_mapping_bytes32_u32(offset: u32, key: FixedBytes<32>, value: u32) {
-    if offset == 0 {
-        panic!("offset should not be zero");
-    }
+pub fn store_mapping_bytes32_u32(id: u32, key: FixedBytes<32>, value: u32) {
+    let key = key.abi_encode();
+    let ptr_key = key.as_ptr() as u32;
+    let len_key = key.len() as u32;
+    std::mem::forget(key);
+
     let value_bytes = value.to_be_bytes();
     let ptr = value_bytes.as_ptr() as u32;
     let len = value_bytes.len() as u32;
     // std::mem::forget(value_bytes);
-    unsafe {
-        let pseudo_key = (U256::from_be_bytes(*key) % U256::from(896)).as_limbs()[0];
-        store_dynamic_bytes(offset, pseudo_key as u32, ptr, len)
-    };
+    unsafe { store_dynamic_bytes(id, ptr_key, len_key, ptr, len) };
 }
-pub fn get_mapping_bytes32_u32(offset: u32, key: FixedBytes<32>) -> u32 {
-    if offset == 0 {
-        panic!("offset should not be zero");
-    }
+
+pub fn get_mapping_bytes32_u32(id: u32, key: FixedBytes<32>) -> u32 {
+    let key = key.abi_encode();
+    let ptr_key = key.as_ptr() as u32;
+    let len_key = key.len() as u32;
+    std::mem::forget(key);
+
     unsafe {
-        let pseudo_key = (U256::from_be_bytes(*key) % U256::from(896)).as_limbs()[0];
-        let ptr_packed = get_dynamic_bytes(offset, pseudo_key as u32);
+        let ptr_packed = get_dynamic_bytes(id, ptr_key, len_key);
         let data = slice::from_raw_parts((ptr_packed >> 32) as *mut u8, (ptr_packed as u16).into());
         u32::from_be_bytes(data.try_into().unwrap())
     }
 }
-// use enums for state variables & provide enough abstraction
-
-// Storage layout:
-// # storage keys: 2048(default) --> # of storage keys allocated to the contract.
-// # static keys: 128(default) --> # of storage keys allocated for static types.
-// # dynamic keys: 1920(default) --> # of storage keys allocated for dynamic types --> mapping, arrays etc.

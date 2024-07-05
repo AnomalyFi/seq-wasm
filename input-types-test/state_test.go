@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -39,19 +40,29 @@ func TestState(t *testing.T) {
 		m.Memory().Write(uint32(offset), result)
 		return uint64(offset)<<32 | size
 	}
-	stateStoreDynamicBytesInner := func(ctxInner context.Context, m api.Module, offset uint32, key uint32, ptr uint32, size uint32) {
-		i := 128 + (offset*key)%896
-		slot := "slot" + strconv.Itoa(int(i))
+	stateStoreDynamicBytesInner := func(ctxInner context.Context, m api.Module, id, ptrKey, sizeOfKey, ptr, size uint32) {
+		// read key from memory.
+		key, ok := m.Memory().Read(ptrKey, sizeOfKey)
+		if !ok {
+			os.Exit(10)
+		}
+		// read value from memory.
 		bytes, ok := m.Memory().Read(ptr, size)
 		if !ok {
 			os.Exit(10)
 		}
+		slot := "slot" + strconv.Itoa(int(id)) + hex.EncodeToString(key)
 		mapper[slot] = bytes
 	}
-	stateGetDynamicBytesInner := func(ctxInner context.Context, m api.Module, offset uint32, key uint32) uint64 {
-		i := 128 + (offset*key)%896
-		slot := "slot" + strconv.Itoa(int(i))
+	stateGetDynamicBytesInner := func(ctxInner context.Context, m api.Module, id, ptrKey, sizeOfKey uint32) uint64 {
+		// read key from memory.
+		key, ok := m.Memory().Read(ptrKey, sizeOfKey)
+		if !ok {
+			os.Exit(10)
+		}
+		slot := "slot" + strconv.Itoa(int(id)) + hex.EncodeToString(key)
 		result := mapper[slot]
+		// write value to memory.
 		size := uint64(len(result))
 		results, _ := allocate_ptr.Call(ctxInner, size)
 		offset2 := results[0]
@@ -89,7 +100,17 @@ func TestState(t *testing.T) {
 	test_get_bytes32 := mod.ExportedFunction("test_get_bytes32")
 	test_store_bytes := mod.ExportedFunction("test_store_bytes")
 	test_get_bytes := mod.ExportedFunction("test_get_bytes")
-	test_dynamic := mod.ExportedFunction("test_dynamic")
+	test_store_mapping_u256_bytes32 := mod.ExportedFunction("test_store_mapping_u256_bytes32")
+	test_get_mapping_u256_bytes32 := mod.ExportedFunction("test_get_mapping_u256_bytes32")
+	test_store_mapping_u64_bytes32 := mod.ExportedFunction("test_store_mapping_u64_bytes32")
+	test_get_mapping_u64_bytes32 := mod.ExportedFunction("test_get_mapping_u64_bytes32")
+	test_store_mapping_u32_bytes32 := mod.ExportedFunction("test_store_mapping_u32_bytes32")
+	test_get_mapping_u32_bytes32 := mod.ExportedFunction("test_get_mapping_u32_bytes32")
+	test_store_mapping_bytes32_bytes32 := mod.ExportedFunction("test_store_mapping_bytes32_bytes32")
+	test_get_mapping_bytes32_bytes32 := mod.ExportedFunction("test_get_mapping_bytes32_bytes32")
+	test_store_mapping_bytes32_u32 := mod.ExportedFunction("test_store_mapping_bytes32_u32")
+	test_get_mapping_bytes32_u32 := mod.ExportedFunction("test_get_mapping_bytes32_u32")
+
 	// store and get u256
 	_, err = test_store_u256.Call(ctxWasm)
 	require.NoError(t, err)
@@ -138,7 +159,48 @@ func TestState(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, result[0], uint64(1))
 
-	_, err = test_dynamic.Call(ctxWasm)
+	// store and get mapping u256 bytes32
+	_, err = test_store_mapping_u256_bytes32.Call(ctxWasm)
 	require.NoError(t, err)
-	require.Equal(t, []byte{1, 2, 3}, mapper["slot136"])
+	slot := "slot" + strconv.Itoa(1) + hex.EncodeToString([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 57})
+	require.Equal(t, []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, mapper[slot])
+	result, err = test_get_mapping_u256_bytes32.Call(ctxWasm)
+	require.NoError(t, err)
+	require.Equal(t, result[0], uint64(1))
+
+	// store and get mapping u64 bytes32
+	_, err = test_store_mapping_u64_bytes32.Call(ctxWasm)
+	require.NoError(t, err)
+	slot = "slot" + strconv.Itoa(3) + hex.EncodeToString([]byte{0, 0, 0, 0, 0, 0, 16, 134})
+	require.Equal(t, []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, mapper[slot])
+	result, err = test_get_mapping_u64_bytes32.Call(ctxWasm)
+	require.NoError(t, err)
+	require.Equal(t, result[0], uint64(1))
+
+	// store and get mapping u32 bytes32
+	_, err = test_store_mapping_u32_bytes32.Call(ctxWasm)
+	require.NoError(t, err)
+	slot = "slot" + strconv.Itoa(5) + hex.EncodeToString([]byte{0, 0, 0, 123})
+	require.Equal(t, []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, mapper[slot])
+	result, err = test_get_mapping_u32_bytes32.Call(ctxWasm)
+	require.NoError(t, err)
+	require.Equal(t, result[0], uint64(1))
+
+	// store and get mapping bytes32 bytes32
+	_, err = test_store_mapping_bytes32_bytes32.Call(ctxWasm)
+	require.NoError(t, err)
+	slot = "slot" + strconv.Itoa(7) + hex.EncodeToString([]byte{2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2})
+	require.Equal(t, []byte{4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4}, mapper[slot])
+	result, err = test_get_mapping_bytes32_bytes32.Call(ctxWasm)
+	require.NoError(t, err)
+	require.Equal(t, result[0], uint64(1))
+
+	// store and get mapping bytes32 u32
+	_, err = test_store_mapping_bytes32_u32.Call(ctxWasm)
+	require.NoError(t, err)
+	slot = "slot" + strconv.Itoa(9) + hex.EncodeToString([]byte{2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2})
+	require.Equal(t, []byte{0, 0, 48, 81}, mapper[slot])
+	result, err = test_get_mapping_bytes32_u32.Call(ctxWasm)
+	require.NoError(t, err)
+	require.Equal(t, result[0], uint64(1))
 }

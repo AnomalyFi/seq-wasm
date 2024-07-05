@@ -25,10 +25,9 @@ const STATIC_STATE_PROOFNONCE: u32 = 4;
 const STATIC_BLOBSTREAM_PROGRAM_VKEY_HASH: u32 = 5; // sha256 hash of the verification key.
 const STATIC_BLOBSTREAM_PROGRAM_VKEY: u32 = 6; // actual verification key.
 
-// the below represnted values act as an offset. we need to make sure collisions will not happen
-// tune with the offsets
-const DYNAMIC_BLOCK_HEIGHT_TO_HEADER_HASH: u32 = 2;
-const DYNAMIC_STATE_DATA_COMMITMENTS: u32 = 3;
+//
+const MAPPING_BLOCK_HEIGHT_TO_HEADER_HASH_ID: u32 = 1;
+const MAPPING_STATE_DATA_COMMITMENTS_ID: u32 = 2;
 
 // CONSTANT VARIABLES
 const DATA_COMMITMENT_MAX: u64 = 10_000;
@@ -48,7 +47,7 @@ pub extern "C" fn initializer(tx_context: *const TxContext, ptr: *const u8, len:
 
     // Store the initial state variables and set contract as initialized.
     state::store_u64(STATIC_LATESTBLOCK, height);
-    state::store_mapping_u64_bytes32(DYNAMIC_BLOCK_HEIGHT_TO_HEADER_HASH, height, header);
+    state::store_mapping_u64_bytes32(MAPPING_BLOCK_HEIGHT_TO_HEADER_HASH_ID, height, header);
     state::store_u256(STATIC_STATE_PROOFNONCE, U256::from(1));
     state::store_vec(STATIC_GUARDIAN, &msg_sender);
     state::store_bytes32(
@@ -102,7 +101,7 @@ pub extern "C" fn update_genesis_state(
     }
 
     // msg_sender is the guardian, update the genesis state variables.
-    state::store_mapping_u64_bytes32(DYNAMIC_BLOCK_HEIGHT_TO_HEADER_HASH, height, header);
+    state::store_mapping_u64_bytes32(MAPPING_BLOCK_HEIGHT_TO_HEADER_HASH_ID, height, header);
     state::store_u64(STATIC_LATESTBLOCK, height);
 
     // Call executed without any errors, return true.
@@ -162,7 +161,7 @@ pub unsafe extern "C" fn commit_header_range(
     // fetch the latest block and trusted header hash from the state.
     let latest_block = state::get_u64(STATIC_LATESTBLOCK);
     let trusted_header =
-        state::get_mapping_u64_bytes32(DYNAMIC_BLOCK_HEIGHT_TO_HEADER_HASH, latest_block);
+        state::get_mapping_u64_bytes32(MAPPING_BLOCK_HEIGHT_TO_HEADER_HASH_ID, latest_block);
 
     // sanity check public values and state values.
     if trusted_header == FixedBytes::<32>::new([0; 32]) {
@@ -192,12 +191,12 @@ pub unsafe extern "C" fn commit_header_range(
         let proof_nonce = state::get_u256(STATIC_STATE_PROOFNONCE);
 
         state::store_mapping_u64_bytes32(
-            DYNAMIC_BLOCK_HEIGHT_TO_HEADER_HASH,
+            MAPPING_BLOCK_HEIGHT_TO_HEADER_HASH_ID,
             target_block,
             target_header_hash,
         );
         state::store_mapping_u256_bytes32(
-            DYNAMIC_STATE_DATA_COMMITMENTS,
+            MAPPING_STATE_DATA_COMMITMENTS_ID,
             proof_nonce,
             data_commitment,
         );
@@ -233,7 +232,7 @@ pub extern "C" fn verify_attestation(_: *const TxContext, ptr: *const u8, len: u
     }
 
     // Fetch the data commitment from the state and verify the proof.
-    let root = state::get_mapping_u256_bytes32(DYNAMIC_STATE_DATA_COMMITMENTS, proof_nonce);
+    let root = state::get_mapping_u256_bytes32(MAPPING_STATE_DATA_COMMITMENTS_ID, proof_nonce);
     let is_proof_valid = binary_merkle_tree::verify(root, proof, tuple.abi_encode().into());
 
     is_proof_valid

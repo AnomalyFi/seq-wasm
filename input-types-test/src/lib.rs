@@ -98,10 +98,76 @@ pub extern "C" fn test_get_bytes() -> bool {
 }
 
 #[no_mangle]
-pub extern "C" fn test_dynamic() {
-    let vet = vec![1 as u8, 2, 3];
-    let ptr = vet.as_ptr() as u32;
-    let size = vet.len() as u32;
-    std::mem::forget(vet);
-    unsafe { state::store_dynamic_bytes(2, 4, ptr, size) };
+pub extern "C" fn test_store_mapping_u256_bytes32() {
+    state::store_mapping_u256_bytes32(1, U256::from(569), FixedBytes::from([1; 32]));
+}
+
+#[no_mangle]
+pub extern "C" fn test_get_mapping_u256_bytes32() -> bool {
+    state::store_mapping_u256_bytes32(2, U256::from(569), FixedBytes::from([1; 32]));
+    let bytes32_fs = state::get_mapping_u256_bytes32(2, U256::from(569));
+    if bytes32_fs == [1; 32] {
+        return true;
+    }
+    false
+}
+
+#[no_mangle]
+pub extern "C" fn test_store_mapping_u64_bytes32() {
+    state::store_mapping_u64_bytes32(3, 4230, FixedBytes::from([1; 32]));
+}
+
+#[no_mangle]
+pub extern "C" fn test_get_mapping_u64_bytes32() -> bool {
+    state::store_mapping_u64_bytes32(4, 4230, FixedBytes::from([1; 32]));
+    let bytes32_fs = state::get_mapping_u64_bytes32(4, 4230);
+    if bytes32_fs == [1; 32] {
+        return true;
+    }
+    false
+}
+
+#[no_mangle]
+pub extern "C" fn test_store_mapping_u32_bytes32() {
+    state::store_mapping_u32_bytes32(5, 123, FixedBytes::from([1; 32]));
+}
+
+#[no_mangle]
+pub extern "C" fn test_get_mapping_u32_bytes32() -> bool {
+    state::store_mapping_u32_bytes32(6, 123, FixedBytes::from([1; 32]));
+    let bytes32_fs = state::get_mapping_u32_bytes32(6, 123);
+    if bytes32_fs == [1; 32] {
+        return true;
+    }
+    false
+}
+
+#[no_mangle]
+pub extern "C" fn test_store_mapping_bytes32_bytes32() {
+    state::store_mapping_bytes32_bytes32(7, FixedBytes::from([2; 32]), FixedBytes::from([4; 32]));
+}
+
+#[no_mangle]
+pub extern "C" fn test_get_mapping_bytes32_bytes32() -> bool {
+    state::store_mapping_bytes32_bytes32(8, FixedBytes::from([2; 32]), FixedBytes::from([4; 32]));
+    let bytes32_fs = state::get_mapping_bytes32_bytes32(8, FixedBytes::from([2; 32]));
+    if bytes32_fs == [4; 32] {
+        return true;
+    }
+    false
+}
+
+#[no_mangle]
+pub extern "C" fn test_store_mapping_bytes32_u32() {
+    state::store_mapping_bytes32_u32(9, FixedBytes::from([2; 32]), 12369);
+}
+
+#[no_mangle]
+pub extern "C" fn test_get_mapping_bytes32_u32() -> bool {
+    state::store_mapping_bytes32_u32(10, FixedBytes::from([69; 32]), 12369);
+    let u32_fs = state::get_mapping_bytes32_u32(10, FixedBytes::from([69; 32]));
+    if u32_fs == 12369 {
+        return true;
+    }
+    false
 }
