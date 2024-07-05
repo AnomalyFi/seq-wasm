@@ -9,10 +9,8 @@ use input_type::{
 };
 // seq wasm sdk
 pub use seq_wasm_sdk::allocator::*;
-use seq_wasm_sdk::state;
-use seq_wasm_sdk::utils::TxContext;
-use seq_wasm_sdk::{fixed_bytes, keccak256, sol, FixedBytes, SolType, SolValue, U256};
-use seq_wasm_sdk::{precompiles, slice};
+use seq_wasm_sdk::{fixed_bytes, keccak256, slice, sol, FixedBytes, SolType, SolValue, U256};
+use seq_wasm_sdk::{precompiles, state, types, utils::TxContext};
 
 // state variables
 const STATIC_ISINITIALIZED: u32 = 0;
@@ -51,7 +49,7 @@ pub extern "C" fn initializer(tx_context: *const TxContext, ptr: *const u8, len:
     state::store_u32(STATIC_LATESTBLOCK, height);
     state::store_bytes32(STATIC_HEADER_RANGE_FUNCTION_ID, header_range_function_id);
     state::store_bytes32(STATIC_ROTATE_FUNCTION_ID, rotate_function_id);
-    state::store_vec(STATIC_OWNER, &msg_sender);
+    state::store_address(STATIC_OWNER, &msg_sender);
     state::store_bool(STATIC_ISINITIALIZED, 1);
     true
 }
@@ -63,7 +61,7 @@ pub extern "C" fn update_freeze(tx_context: *const TxContext, ptr: *const u8, le
         return false; //this may not be necessary because owner is no one if not initialized
     }
     let msg_sender = msg_sender(tx_context);
-    let owner = state::get_vec(STATIC_OWNER);
+    let owner = state::get_address(STATIC_OWNER);
     if msg_sender != owner {
         // not an owner
         return false;
@@ -124,12 +122,7 @@ pub unsafe extern "C" fn commit_header_range(
         "10310189448205051960894735306968713236725543474929808083983647516402594023487",
     )
     .unwrap(); //@todo dummy header range function id big int
-    if precompiles::gnark_verify(
-        input,
-        output.clone(),
-        proof,
-        header_range_function_id_big_int,
-    ) {
+    if precompiles::gnark_verify(FixedBytes::new([0; 32]), output.clone(), proof, vec![0u8]) {
         // valid proof
         let (target_header_hash, state_root_commitment, data_root_commitment) =
             OutputBreaker::decode(&output);
@@ -199,7 +192,7 @@ pub unsafe extern "C" fn rotate(_: *const TxContext, ptr: *const u8, len: u32) -
         "10310189448205051960894735306968713236725543474929808083983647516402594023487",
     )
     .unwrap(); //@todo dummy rotate function id big int
-    if precompiles::gnark_verify(input, output.clone(), proof, rotate_function_id_big_int) {
+    if precompiles::gnark_verify(FixedBytes::new([0; 32]), output.clone(), proof, vec![0u8]) {
         // this particular verifier is not available publicly yet. @todo
         // valid proof
         let new_authority_set_hash = OutputBreakerRotate::decode(&output);
@@ -232,7 +225,7 @@ fn is_initialized() -> bool {
     }
 }
 
-fn msg_sender(tx_context: *const TxContext) -> Vec<u8> {
+fn msg_sender(tx_context: *const TxContext) -> types::Address {
     let tx_context = unsafe { &*tx_context };
     tx_context.msg_sender()
 }
