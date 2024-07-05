@@ -11,10 +11,8 @@ use input_type::{
 
 // seq wasm sdk imports.
 pub use seq_wasm_sdk::allocator::*;
-use seq_wasm_sdk::slice;
-use seq_wasm_sdk::state;
-use seq_wasm_sdk::utils::TxContext;
-use seq_wasm_sdk::{sol, Bytes, FixedBytes, FromHex, SolType, SolValue, U256};
+use seq_wasm_sdk::{precompiles, state, types, utils::TxContext};
+use seq_wasm_sdk::{slice, sol, Bytes, FixedBytes, FromHex, SolType, SolValue, U256};
 
 // get state variables enum from program vm.
 const STATIC_ISINITIALIZED: u32 = 0;
@@ -25,7 +23,7 @@ const STATIC_STATE_PROOFNONCE: u32 = 4;
 const STATIC_BLOBSTREAM_PROGRAM_VKEY_HASH: u32 = 5; // sha256 hash of the verification key.
 const STATIC_BLOBSTREAM_PROGRAM_VKEY: u32 = 6; // actual verification key.
 
-//
+// ids for storing dynamic variables.
 const MAPPING_BLOCK_HEIGHT_TO_HEADER_HASH_ID: u32 = 1;
 const MAPPING_STATE_DATA_COMMITMENTS_ID: u32 = 2;
 
@@ -49,7 +47,7 @@ pub extern "C" fn initializer(tx_context: *const TxContext, ptr: *const u8, len:
     state::store_u64(STATIC_LATESTBLOCK, height);
     state::store_mapping_u64_bytes32(MAPPING_BLOCK_HEIGHT_TO_HEADER_HASH_ID, height, header);
     state::store_u256(STATIC_STATE_PROOFNONCE, U256::from(1));
-    state::store_vec(STATIC_GUARDIAN, &msg_sender);
+    state::store_address(STATIC_GUARDIAN, &msg_sender);
     state::store_bytes32(
         STATIC_BLOBSTREAM_PROGRAM_VKEY_HASH,
         blobstream_program_vkey_hash,
@@ -69,7 +67,7 @@ pub extern "C" fn update_freeze(tx_context: *const TxContext, ptr: *const u8, le
     let freeze = UpdateFreezeInput::new(ptr, len).freeze;
 
     // Fetch the guardian address from the state and check if the msg_sender is the guardian.
-    let gaurdian = state::get_vec(STATIC_GUARDIAN);
+    let gaurdian = state::get_address(STATIC_GUARDIAN).try_into().unwrap();
     if msg_sender != gaurdian {
         // msg_sender is not the guardian, return false.
         return false;
@@ -94,7 +92,7 @@ pub extern "C" fn update_genesis_state(
     let (height, header) = UpdateGenesisStateInput::new(ptr, len).unpack();
 
     // Fetch the guardian address from the state and check if the msg_sender is the guardian.
-    let gaurdian = state::get_vec(STATIC_GUARDIAN);
+    let gaurdian = state::get_address(STATIC_GUARDIAN);
     if msg_sender != gaurdian {
         // msg_sender is not the guardian, return false.
         return false;
@@ -120,7 +118,7 @@ pub extern "C" fn update_program_vkey(
     let (program_vkey_hash, program_vkey) = UpdateProgramVkeyInput::new(ptr, len).unpack();
 
     // Fetch the guardian address from the state and check if the msg_sender is the guardian.
-    let gaurdian = state::get_vec(STATIC_GUARDIAN);
+    let gaurdian = state::get_address(STATIC_GUARDIAN);
     if msg_sender != gaurdian {
         // msg_sender is not the guardian, return false.
         return false;
@@ -137,11 +135,7 @@ pub extern "C" fn update_program_vkey(
 /// Commits the new header at targetBlock and the data commitment for the block range [latestBlock, targetBlock].
 #[cfg_attr(all(target_arch = "wasm32"), export_name = "commit_header_range")]
 #[no_mangle]
-pub unsafe extern "C" fn commit_header_range(
-    _: *const TxContext,
-    ptr: *const u8,
-    len: u32,
-) -> bool {
+pub extern "C" fn commit_header_range(_: *const TxContext, ptr: *const u8, len: u32) -> bool {
     // if contract is frozen or not initialized, return false.
     if is_frozen() || !is_initialized() {
         return false;
@@ -181,7 +175,7 @@ pub unsafe extern "C" fn commit_header_range(
     let blobstream_program_vkey_hash = state::get_bytes32(STATIC_BLOBSTREAM_PROGRAM_VKEY_HASH);
     let blobstream_program_vkey = state::get_vec(STATIC_BLOBSTREAM_PROGRAM_VKEY);
     // verify sp1 plonk proof.
-    if state::gnark_verify(
+    if precompiles::gnark_verify(
         blobstream_program_vkey_hash,
         public_values,
         proof,
@@ -254,7 +248,7 @@ fn is_initialized() -> bool {
     }
 }
 
-fn msg_sender(tx_context: *const TxContext) -> Vec<u8> {
+fn msg_sender(tx_context: *const TxContext) -> types::Address {
     let tx_context = unsafe { &*tx_context };
     tx_context.msg_sender()
 }

@@ -4,7 +4,7 @@ extern crate wee_alloc;
 
 pub use seq_wasm_sdk::allocator::{allocate, deallocate}; // re-export
 use seq_wasm_sdk::state::{self};
-use seq_wasm_sdk::{FixedBytes, U256};
+use seq_wasm_sdk::{precompiles, FixedBytes, U256};
 pub use std::alloc::{alloc, Layout};
 
 #[no_mangle]
@@ -170,4 +170,15 @@ pub extern "C" fn test_get_mapping_bytes32_u32() -> bool {
         return true;
     }
     false
+}
+
+#[no_mangle]
+pub extern "C" fn test_precompiles_module_call() -> bool {
+    let fb = FixedBytes::from([1; 32]);
+    precompiles::gnark_verify(fb, vec![1u8], vec![1u8], vec![1u8])
+}
+
+#[no_mangle]
+pub extern "C" fn test_multi_input(a: u32, b: u64, c: u32, d: u32) -> u32 {
+    a + b as u32 + c + d
 }

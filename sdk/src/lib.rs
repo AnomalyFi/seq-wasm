@@ -4,7 +4,9 @@ pub extern crate core;
 pub extern crate wee_alloc;
 
 pub mod allocator;
+pub mod precompiles;
 pub mod state;
+pub mod types;
 pub mod utils;
 // alloy re-exports
 pub use alloy_primitives::{

@@ -9,10 +9,10 @@ use input_type::{
 };
 // seq wasm sdk
 pub use seq_wasm_sdk::allocator::*;
-use seq_wasm_sdk::slice;
 use seq_wasm_sdk::state;
 use seq_wasm_sdk::utils::TxContext;
 use seq_wasm_sdk::{fixed_bytes, keccak256, sol, FixedBytes, SolType, SolValue, U256};
+use seq_wasm_sdk::{precompiles, slice};
 
 // state variables
 const STATIC_ISINITIALIZED: u32 = 0;
@@ -124,7 +124,7 @@ pub unsafe extern "C" fn commit_header_range(
         "10310189448205051960894735306968713236725543474929808083983647516402594023487",
     )
     .unwrap(); //@todo dummy header range function id big int
-    if state::gnark_verify(
+    if precompiles::gnark_verify(
         input,
         output.clone(),
         proof,
@@ -199,7 +199,7 @@ pub unsafe extern "C" fn rotate(_: *const TxContext, ptr: *const u8, len: u32) -
         "10310189448205051960894735306968713236725543474929808083983647516402594023487",
     )
     .unwrap(); //@todo dummy rotate function id big int
-    if state::gnark_verify(input, output.clone(), proof, rotate_function_id_big_int) {
+    if precompiles::gnark_verify(input, output.clone(), proof, rotate_function_id_big_int) {
         // this particular verifier is not available publicly yet. @todo
         // valid proof
         let new_authority_set_hash = OutputBreakerRotate::decode(&output);

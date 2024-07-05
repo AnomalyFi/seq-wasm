@@ -69,17 +69,28 @@ func TestState(t *testing.T) {
 		m.Memory().Write(uint32(offset2), result)
 		return uint64(offset2)<<32 | size
 	}
-	gnarkVer := func(ctxInner context.Context, m api.Module, ptr uint32, size uint32) uint32 {
+	gnarkVerify := func(ctxInner context.Context, m api.Module, ptr uint32, size uint32) uint32 {
 		return 1
 	}
 
+	addBalance := func(ctxInner context.Context, m api.Module) {
+		// storage.AddBalance()
+	}
+	subBalance := func(ctxInner context.Context, m api.Module) {}
 	// Instantiate the module
 	_, err := r.NewHostModuleBuilder("env").NewFunctionBuilder().
 		WithFunc(stateGetBytesInner).Export("stateGetBytes").
 		NewFunctionBuilder().WithFunc(stateStoreBytesInner).Export("stateStoreBytes").
 		NewFunctionBuilder().WithFunc(stateStoreDynamicBytesInner).Export("stateStoreDynamicBytes").
 		NewFunctionBuilder().WithFunc(stateGetDynamicBytesInner).Export("stateGetDynamicBytes").
-		NewFunctionBuilder().WithFunc(gnarkVer).Export("gnarkVerify").
+		Instantiate(ctxWasm)
+
+	require.NoError(t, err)
+
+	_, err = r.NewHostModuleBuilder("precompiles").
+		NewFunctionBuilder().WithFunc(gnarkVerify).Export("gnarkVerify").
+		NewFunctionBuilder().WithFunc(addBalance).Export("addBalance").
+		NewFunctionBuilder().WithFunc(subBalance).Export("subBalance").
 		Instantiate(ctxWasm)
 
 	require.NoError(t, err)
@@ -110,7 +121,8 @@ func TestState(t *testing.T) {
 	test_get_mapping_bytes32_bytes32 := mod.ExportedFunction("test_get_mapping_bytes32_bytes32")
 	test_store_mapping_bytes32_u32 := mod.ExportedFunction("test_store_mapping_bytes32_u32")
 	test_get_mapping_bytes32_u32 := mod.ExportedFunction("test_get_mapping_bytes32_u32")
-
+	test_precompiles_module_call := mod.ExportedFunction("test_precompiles_module_call")
+	test_multi_input := mod.ExportedFunction("test_multi_input")
 	// store and get u256
 	_, err = test_store_u256.Call(ctxWasm)
 	require.NoError(t, err)
@@ -203,4 +215,12 @@ func TestState(t *testing.T) {
 	result, err = test_get_mapping_bytes32_u32.Call(ctxWasm)
 	require.NoError(t, err)
 	require.Equal(t, result[0], uint64(1))
+
+	_, err = test_precompiles_module_call.Call(ctxWasm)
+	require.NoError(t, err)
+	require.Equal(t, result[0], uint64(1))
+
+	result, err = test_multi_input.Call(ctxWasm, 1, 2, 4, 5)
+	require.NoError(t, err)
+	require.Equal(t, result[0], uint64(12))
 }

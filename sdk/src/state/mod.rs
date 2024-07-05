@@ -1,5 +1,6 @@
+use crate::types;
 use crate::utils::gnarkPrecompileInputs;
-use crate::{slice, Address, FixedBytes, SolValue, U256};
+use crate::{slice, FixedBytes, SolValue, U256};
 #[link(wasm_import_module = "env")]
 extern "C" {
     #[link_name = "stateStoreBytes"]
@@ -10,35 +11,6 @@ extern "C" {
     pub fn store_dynamic_bytes(id: u32, ptr_of_key: u32, size_of_key: u32, ptr: u32, size: u32);
     #[link_name = "stateGetDynamicBytes"]
     pub fn get_dynamic_bytes(id: u32, ptr_of_key: u32, size_of_key: u32) -> u64;
-    /// SP1 plonk verify precompile.
-    /// Returns 1 for valid proof, 0 otherwise.
-    /// Verifies the proof and public values without any checks for invarients.
-    /// Invarient checks should be performed before calling the precompile..
-    /// ptr & size are of the struct `gnarkPrecompileInputs`
-    #[link_name = "gnarkVerify"]
-    pub fn gnark_verify_inner(ptr: u32, size: u32) -> u32;
-}
-
-pub unsafe fn gnark_verify(
-    program_vkey_hash: FixedBytes<32>,
-    public_values: Vec<u8>,
-    proof: Vec<u8>,
-    program_vkey: Vec<u8>,
-) -> bool {
-    let data = gnarkPrecompileInputs {
-        programVKeyHash: program_vkey_hash,
-        publicValues: public_values,
-        proofBytes: proof,
-        programVKey: program_vkey,
-    }
-    .abi_encode();
-
-    let valid = gnark_verify_inner(data.as_ptr() as u32, data.len() as u32);
-    if valid == 1 {
-        true
-    } else {
-        false
-    }
 }
 
 pub fn store_u256(variable: u32, value: U256) {
@@ -111,8 +83,8 @@ pub fn get_bytes32(variable: u32) -> FixedBytes<32> {
     }
 }
 
-pub fn store_address(variable: u32, value: Address) {
-    let value_bytes = value.abi_encode();
+pub fn store_address(variable: u32, value: &types::Address) {
+    let value_bytes = value.as_bytes().to_vec();
     let ptr = value_bytes.as_ptr() as u32;
     let len = value_bytes.len() as u32;
     std::mem::forget(value_bytes);
@@ -121,11 +93,11 @@ pub fn store_address(variable: u32, value: Address) {
     }
 }
 
-pub fn get_address(variable: u32) -> Address {
+pub fn get_address(variable: u32) -> types::Address {
     unsafe {
         let ptr_packed = get_bytes(variable);
         let data = slice::from_raw_parts((ptr_packed >> 32) as *mut u8, (ptr_packed as u16).into());
-        Address::from_slice(data)
+        types::Address::new(data.try_into().unwrap())
     }
 }
 
