@@ -164,8 +164,8 @@ pub extern "C" fn test_store_mapping_bytes32_u32() {
 
 #[no_mangle]
 pub extern "C" fn test_get_mapping_bytes32_u32() -> bool {
-    state::store_mapping_bytes32_u32(10, FixedBytes::from([69; 32]), 12369);
-    let u32_fs = state::get_mapping_bytes32_u32(10, FixedBytes::from([69; 32]));
+    state::store_mapping_bytes32_u32(10, FixedBytes::from([2; 32]), 12369);
+    let u32_fs = state::get_mapping_bytes32_u32(10, FixedBytes::from([2; 32]));
     if u32_fs == 12369 {
         return true;
     }

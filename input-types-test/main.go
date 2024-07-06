@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	_ "embed"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -207,7 +208,11 @@ func main() {
 		}
 
 		proof := plonk.NewProof(ecc.BN254)
-		_, err = proof.ReadFrom(bytes.NewBuffer(preCompileInput.ProofBytes))
+		proofData, err := hex.DecodeString(string(preCompileInput.ProofBytes))
+		if err != nil {
+			panic(err)
+		}
+		_, err = proof.ReadFrom(bytes.NewReader(proofData))
 		if err != nil {
 			fmt.Println(err)
 			return 0

@@ -15,90 +15,14 @@ import (
 
 func TestState(t *testing.T) {
 	wasmByte, _ := ioutil.ReadFile("/home/ubuntu/seq-wasm/target/wasm32-unknown-unknown/release/input_types_test.wasm")
-	var allocate_ptr api.Function
+
 	ctxWasm := context.Background()
-	r := wazero.NewRuntime(ctxWasm)
-	defer r.Close(ctxWasm)
 	mapper := map[string][]byte{
 		"0": {0, 1},
 	}
 
-	stateStoreBytesInner := func(ctxInner context.Context, m api.Module, i uint32, ptr uint32, size uint32) {
-		slot := "slot" + strconv.Itoa(int(i))
-		bytes, ok := m.Memory().Read(ptr, size)
-		if !ok {
-			os.Exit(10)
-		}
-		mapper[slot] = bytes
-	}
-	stateGetBytesInner := func(ctxInner context.Context, m api.Module, i uint32) uint64 {
-		slot := "slot" + strconv.Itoa(int(i))
-		result := mapper[slot]
-		size := uint64(len(result))
-		results, _ := allocate_ptr.Call(ctxInner, size)
-		offset := results[0]
-		m.Memory().Write(uint32(offset), result)
-		return uint64(offset)<<32 | size
-	}
-	stateStoreDynamicBytesInner := func(ctxInner context.Context, m api.Module, id, ptrKey, sizeOfKey, ptr, size uint32) {
-		// read key from memory.
-		key, ok := m.Memory().Read(ptrKey, sizeOfKey)
-		if !ok {
-			os.Exit(10)
-		}
-		// read value from memory.
-		bytes, ok := m.Memory().Read(ptr, size)
-		if !ok {
-			os.Exit(10)
-		}
-		slot := "slot" + strconv.Itoa(int(id)) + hex.EncodeToString(key)
-		mapper[slot] = bytes
-	}
-	stateGetDynamicBytesInner := func(ctxInner context.Context, m api.Module, id, ptrKey, sizeOfKey uint32) uint64 {
-		// read key from memory.
-		key, ok := m.Memory().Read(ptrKey, sizeOfKey)
-		if !ok {
-			os.Exit(10)
-		}
-		slot := "slot" + strconv.Itoa(int(id)) + hex.EncodeToString(key)
-		result := mapper[slot]
-		// write value to memory.
-		size := uint64(len(result))
-		results, _ := allocate_ptr.Call(ctxInner, size)
-		offset2 := results[0]
-		m.Memory().Write(uint32(offset2), result)
-		return uint64(offset2)<<32 | size
-	}
-	gnarkVerify := func(ctxInner context.Context, m api.Module, ptr uint32, size uint32) uint32 {
-		return 1
-	}
-
-	addBalance := func(ctxInner context.Context, m api.Module) {
-		// storage.AddBalance()
-	}
-	subBalance := func(ctxInner context.Context, m api.Module) {}
-	// Instantiate the module
-	_, err := r.NewHostModuleBuilder("env").NewFunctionBuilder().
-		WithFunc(stateGetBytesInner).Export("stateGetBytes").
-		NewFunctionBuilder().WithFunc(stateStoreBytesInner).Export("stateStoreBytes").
-		NewFunctionBuilder().WithFunc(stateStoreDynamicBytesInner).Export("stateStoreDynamicBytes").
-		NewFunctionBuilder().WithFunc(stateGetDynamicBytesInner).Export("stateGetDynamicBytes").
-		Instantiate(ctxWasm)
-
+	mod /*allocate_ptr*/, _, err := runtime(ctxWasm, mapper, wasmByte)
 	require.NoError(t, err)
-
-	_, err = r.NewHostModuleBuilder("precompiles").
-		NewFunctionBuilder().WithFunc(gnarkVerify).Export("gnarkVerify").
-		NewFunctionBuilder().WithFunc(addBalance).Export("addBalance").
-		NewFunctionBuilder().WithFunc(subBalance).Export("subBalance").
-		Instantiate(ctxWasm)
-
-	require.NoError(t, err)
-
-	mod, err := r.Instantiate(ctxWasm, wasmByte)
-	require.NoError(t, err)
-
-	allocate_ptr = mod.ExportedFunction("allocate_ptr")
 	test_store_u256 := mod.ExportedFunction("test_store_u256")
 	test_get_u256 := mod.ExportedFunction("test_get_u256")
 	test_store_u64 := mod.ExportedFunction("test_store_u64")
@@ -223,4 +147,93 @@ func TestState(t *testing.T) {
 	result, err = test_multi_input.Call(ctxWasm, 1, 2, 4, 5)
 	require.NoError(t, err)
 	require.Equal(t, result[0], uint64(12))
+}
+
+func runtime(ctxWasm context.Context, mapper map[string][]byte, wasmByte []byte) (api.Module, api.Function, error) {
+
+	var allocate_ptr api.Function
+	r := wazero.NewRuntime(ctxWasm)
+
+	stateStoreBytesInner := func(ctxInner context.Context, m api.Module, i uint32, ptr uint32, size uint32) {
+		slot := "slot" + strconv.Itoa(int(i))
+		bytes, ok := m.Memory().Read(ptr, size)
+		if !ok {
+			os.Exit(10)
+		}
+		mapper[slot] = bytes
+	}
+	stateGetBytesInner := func(ctxInner context.Context, m api.Module, i uint32) uint64 {
+		slot := "slot" + strconv.Itoa(int(i))
+		result := mapper[slot]
+		size := uint64(len(result))
+		results, _ := allocate_ptr.Call(ctxInner, size)
+		offset := results[0]
+		m.Memory().Write(uint32(offset), result)
+		return uint64(offset)<<32 | size
+	}
+	stateStoreDynamicBytesInner := func(ctxInner context.Context, m api.Module, id, ptrKey, sizeOfKey, ptr, size uint32) {
+		// read key from memory.
+		key, ok := m.Memory().Read(ptrKey, sizeOfKey)
+		if !ok {
+			os.Exit(10)
+		}
+		// read value from memory.
+		bytes, ok := m.Memory().Read(ptr, size)
+		if !ok {
+			os.Exit(10)
+		}
+		slot := "slot" + strconv.Itoa(int(id)) + hex.EncodeToString(key)
+		mapper[slot] = bytes
+	}
+	stateGetDynamicBytesInner := func(ctxInner context.Context, m api.Module, id, ptrKey, sizeOfKey uint32) uint64 {
+		// read key from memory.
+		key, ok := m.Memory().Read(ptrKey, sizeOfKey)
+		if !ok {
+			os.Exit(10)
+		}
+		slot := "slot" + strconv.Itoa(int(id)) + hex.EncodeToString(key)
+		result := mapper[slot]
+		// write value to memory.
+		size := uint64(len(result))
+		results, _ := allocate_ptr.Call(ctxInner, size)
+		offset2 := results[0]
+		m.Memory().Write(uint32(offset2), result)
+		return uint64(offset2)<<32 | size
+	}
+	gnarkVerify := func(ctxInner context.Context, m api.Module, ptr uint32, size uint32) uint32 {
+		return 1
+	}
+
+	addBalance := func(ctxInner context.Context, m api.Module) {
+		// storage.AddBalance()
+	}
+	subBalance := func(ctxInner context.Context, m api.Module) {}
+
+	// Instantiate the module
+	_, err := r.NewHostModuleBuilder("env").NewFunctionBuilder().
+		WithFunc(stateGetBytesInner).Export("stateGetBytes").
+		NewFunctionBuilder().WithFunc(stateStoreBytesInner).Export("stateStoreBytes").
+		NewFunctionBuilder().WithFunc(stateStoreDynamicBytesInner).Export("stateStoreDynamicBytes").
+		NewFunctionBuilder().WithFunc(stateGetDynamicBytesInner).Export("stateGetDynamicBytes").
+		Instantiate(ctxWasm)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	_, err = r.NewHostModuleBuilder("precompiles").
+		NewFunctionBuilder().WithFunc(gnarkVerify).Export("gnarkVerify").
+		NewFunctionBuilder().WithFunc(addBalance).Export("addBalance").
+		NewFunctionBuilder().WithFunc(subBalance).Export("subBalance").
+		Instantiate(ctxWasm)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	mod, err := r.Instantiate(ctxWasm, wasmByte)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	allocate_ptr = mod.ExportedFunction("allocate_ptr")
+	return mod, allocate_ptr, nil
 }

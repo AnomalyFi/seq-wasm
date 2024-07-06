@@ -1,5 +1,4 @@
 use crate::types;
-use crate::utils::gnarkPrecompileInputs;
 use crate::{slice, FixedBytes, SolValue, U256};
 #[link(wasm_import_module = "env")]
 extern "C" {
@@ -256,10 +255,10 @@ pub fn store_mapping_bytes32_u32(id: u32, key: FixedBytes<32>, value: u32) {
     let len_key = key.len() as u32;
     std::mem::forget(key);
 
-    let value_bytes = value.to_be_bytes();
+    let value_bytes = value.to_be_bytes().to_vec();
     let ptr = value_bytes.as_ptr() as u32;
     let len = value_bytes.len() as u32;
-    // std::mem::forget(value_bytes);
+    std::mem::forget(value_bytes);
     unsafe { store_dynamic_bytes(id, ptr_key, len_key, ptr, len) };
 }
 
