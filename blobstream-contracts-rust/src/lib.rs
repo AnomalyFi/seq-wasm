@@ -28,7 +28,7 @@ const MAPPING_BLOCK_HEIGHT_TO_HEADER_HASH_ID: u32 = 1;
 const MAPPING_STATE_DATA_COMMITMENTS_ID: u32 = 2;
 
 // CONSTANT VARIABLES
-const DATA_COMMITMENT_MAX: u64 = 10_000;
+const DATA_COMMITMENT_MAX: u64 = 1_000;
 
 #[cfg_attr(all(target_arch = "wasm32"), export_name = "initializer")]
 #[no_mangle]
@@ -48,9 +48,9 @@ pub extern "C" fn initializer(tx_context: *const TxContext, ptr: *const u8, len:
     state::store_mapping_u64_bytes32(MAPPING_BLOCK_HEIGHT_TO_HEADER_HASH_ID, height, header);
     state::store_u256(STATIC_STATE_PROOFNONCE, U256::from(1));
     state::store_address(STATIC_GUARDIAN, &msg_sender);
-    state::store_bytes32(
+    state::store_vec(
         STATIC_BLOBSTREAM_PROGRAM_VKEY_HASH,
-        blobstream_program_vkey_hash,
+        &blobstream_program_vkey_hash,
     );
     state::store_vec(STATIC_BLOBSTREAM_PROGRAM_VKEY, &blobstream_program_vkey);
     state::store_bool(STATIC_ISINITIALIZED, 1);
@@ -125,7 +125,7 @@ pub extern "C" fn update_program_vkey(
     }
 
     // msg_sender is the guardian, update program vkey.
-    state::store_bytes32(STATIC_BLOBSTREAM_PROGRAM_VKEY_HASH, program_vkey_hash);
+    state::store_vec(STATIC_BLOBSTREAM_PROGRAM_VKEY_HASH, &program_vkey_hash);
     state::store_vec(STATIC_BLOBSTREAM_PROGRAM_VKEY, &program_vkey);
 
     // Call executed without any errors, return true.
@@ -136,13 +136,12 @@ pub extern "C" fn update_program_vkey(
 #[cfg_attr(all(target_arch = "wasm32"), export_name = "commit_header_range")]
 #[no_mangle]
 pub extern "C" fn commit_header_range(_: *const TxContext, ptr: *const u8, len: u32) -> bool {
+    // unpack proof and public values from CommitHeaderRangeInput.
+    let (proof, public_values) = CommitHeaderRangeInput::new(ptr, len).unpack();
     // if contract is frozen or not initialized, return false.
     if is_frozen() || !is_initialized() {
         return false;
     }
-
-    // unpack proof and public values from CommitHeaderRangeInput.
-    let (proof, public_values) = CommitHeaderRangeInput::new(ptr, len).unpack();
     let (
         po_trusted_header_hash,
         target_header_hash,
@@ -172,7 +171,7 @@ pub extern "C" fn commit_header_range(_: *const TxContext, ptr: *const u8, len: 
     }
 
     // fetch blobstream program vkey and program vkey hash from the state.
-    let blobstream_program_vkey_hash = state::get_bytes32(STATIC_BLOBSTREAM_PROGRAM_VKEY_HASH);
+    let blobstream_program_vkey_hash = state::get_vec(STATIC_BLOBSTREAM_PROGRAM_VKEY_HASH);
     let blobstream_program_vkey = state::get_vec(STATIC_BLOBSTREAM_PROGRAM_VKEY);
     // verify sp1 plonk proof.
     if precompiles::gnark_verify(

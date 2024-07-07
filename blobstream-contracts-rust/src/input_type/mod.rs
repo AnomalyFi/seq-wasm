@@ -13,7 +13,7 @@ sol!(
     struct InitializerInput {
         uint64  height;
         bytes32 header;
-        bytes32 blobstreamProgramVKeyHash;
+        bytes blobstreamProgramVKeyHash;
         bytes blobstreamProgramVKey;
     }
     struct UpdateFreezeInput{
@@ -24,17 +24,17 @@ sol!(
         bytes32 header;
     }
     struct UpdateProgramVkeyInput{
-        bytes32 blobstreamProgramVKeyHash;
+        bytes blobstreamProgramVKeyHash;
         bytes blobstreamProgramVKey;
+    }
+    struct CommitHeaderRangeInput {
+        bytes proof;
+        bytes publicValues;
     }
     struct VAInput {
         uint256 tuple_root_nonce;
         DataRootTuple tuple;
         BinaryMerkleProof proof;
-    }
-    struct CommitHeaderRangeInput {
-        bytes proof;
-        bytes publicValues;
     }
     struct ProofOutputs {
         bytes32 trustedHeaderHash;
@@ -60,7 +60,7 @@ impl InitializerInput {
         let init_input = unsafe { slice::from_raw_parts(ptr, (len as u16).into()) };
         Self::abi_decode(init_input, true).unwrap()
     }
-    pub fn unpack(&self) -> (u64, FixedBytes<32>, FixedBytes<32>, Vec<u8>) {
+    pub fn unpack(&self) -> (u64, FixedBytes<32>, Vec<u8>, Vec<u8>) {
         (
             self.height,
             self.header.clone(),
@@ -95,7 +95,7 @@ impl UpdateProgramVkeyInput {
         let init_input = unsafe { slice::from_raw_parts(ptr, (len as u16).into()) };
         Self::abi_decode(init_input, true).unwrap()
     }
-    pub fn unpack(&self) -> (FixedBytes<32>, Vec<u8>) {
+    pub fn unpack(&self) -> (Vec<u8>, Vec<u8>) {
         (
             self.blobstreamProgramVKeyHash.clone(),
             self.blobstreamProgramVKey.clone(),

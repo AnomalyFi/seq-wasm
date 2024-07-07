@@ -47,13 +47,13 @@ type BinaryMerkleProof struct {
 	NumLeaves *big.Int
 }
 
-// CommitHeaderRangeInput is an auto generated low-level Go binding around an user-defined struct.
-type CommitHeaderRangeInput struct {
-	TargetBlock uint64
-	Input       []byte
-	Output      []byte
-	Proof       []byte
-}
+// // CommitHeaderRangeInput is an auto generated low-level Go binding around an user-defined struct.
+// type CommitHeaderRangeInput struct {
+// 	TargetBlock uint64
+// 	Input       []byte
+// 	Output      []byte
+// 	Proof       []byte
+// }
 
 // DataRootTuple is an auto generated low-level Go binding around an user-defined struct.
 type DataRootTuple struct {
@@ -62,10 +62,10 @@ type DataRootTuple struct {
 }
 
 // InitializerInput is an auto generated low-level Go binding around an user-defined struct.
-type InitializerInput struct {
-	Height uint64
-	Header [32]byte
-}
+// type InitializerInput struct {
+// 	Height uint64
+// 	Header [32]byte
+// }
 
 // OutputBreaker is an auto generated low-level Go binding around an user-defined struct.
 type OutputBreaker struct {
@@ -86,16 +86,16 @@ var MainMetaData = &bind.MetaData{
 }
 
 // SolGengnarkPrecompileInputs is an auto generated low-level Go binding around an user-defined struct.
-type GnarkPrecompileInputs struct {
-	ProgramVKeyHash [32]byte
-	PublicValues    []byte
-	ProofBytes      []byte
-	ProgramVKey     []byte
-}
+// type GnarkPrecompileInputs struct {
+// 	ProgramVKeyHash []uint8 `json:"programVKeyHash"`
+// 	PublicValues    []uint8 `json:"publicValues"`
+// 	ProofBytes      []uint8 `json:"proofBytes"`
+// 	ProgramVKey     []uint8 `json:"programVKey"`
+// }
 
 // GnarkPreCompileMetaData contains all meta data concerning the SolGen contract.
 var GnarkPreCompileMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"programVKeyHash\",\"type\":\"bytes32\"},{\"internalType\":\"bytes\",\"name\":\"publicValues\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"proofBytes\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"programVKey\",\"type\":\"bytes\"}],\"internalType\":\"structSolGen.gnarkPrecompileInputs\",\"name\":\"inputs\",\"type\":\"tuple\"}],\"name\":\"gnarkPrecompile\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[{\"components\":[{\"internalType\":\"bytes\",\"name\":\"programVKeyHash\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"publicValues\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"proofBytes\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"programVKey\",\"type\":\"bytes\"}],\"internalType\":\"structSolGen.gnarkPrecompileInputs\",\"name\":\"inputs\",\"type\":\"tuple\"}],\"name\":\"gnarkPrecompile\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
 }
 
 // MainABI is the input ABI used to generate the binding from.

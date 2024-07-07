@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 contract SolGen {
     struct gnarkPrecompileInputs{
-        bytes32 programVKeyHash;
+        bytes programVKeyHash;
         bytes publicValues;
         bytes proofBytes;
         bytes programVKey;

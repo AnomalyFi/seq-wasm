@@ -1,6 +1,6 @@
 use crate::types;
 use crate::utils::gnarkPrecompileInputs;
-use crate::{FixedBytes, SolValue};
+use crate::SolValue;
 
 #[link(wasm_import_module = "precompiles")]
 extern "C" {
@@ -21,7 +21,7 @@ extern "C" {
 }
 
 pub fn gnark_verify(
-    program_vkey_hash: FixedBytes<32>,
+    program_vkey_hash: Vec<u8>,
     public_values: Vec<u8>,
     proof: Vec<u8>,
     program_vkey: Vec<u8>,

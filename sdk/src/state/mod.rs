@@ -31,9 +31,10 @@ pub fn get_u256(variable: u32) -> U256 {
 }
 
 pub fn store_u64(variable: u32, value: u64) {
-    let value_bytes = value.to_be_bytes();
+    let value_bytes = value.to_be_bytes().to_vec();
     let ptr = value_bytes.as_ptr() as u32;
     let len = value_bytes.len() as u32;
+    std::mem::forget(value_bytes);
     unsafe {
         store_bytes(variable, ptr, len);
     }
@@ -48,9 +49,10 @@ pub fn get_u64(variable: u32) -> u64 {
 }
 
 pub fn store_u32(variable: u32, value: u32) {
-    let value_bytes = value.to_be_bytes();
+    let value_bytes = value.to_be_bytes().to_vec();
     let ptr = value_bytes.as_ptr() as u32;
     let len = value_bytes.len() as u32;
+    std::mem::forget(value_bytes);
     unsafe {
         store_bytes(variable, ptr, len);
     }
@@ -120,12 +122,13 @@ pub fn get_vec(variable: u32) -> Vec<u8> {
 
 pub fn store_bool(variable: u32, value: u32) {
     let value_bytes = if value == 0 {
-        0_u32.to_be_bytes()
+        0_u32.to_be_bytes().to_vec()
     } else {
-        1_u32.to_be_bytes()
+        1_u32.to_be_bytes().to_vec()
     };
     let ptr = value_bytes.as_ptr() as u32;
     let len = value_bytes.len() as u32;
+    std::mem::forget(value_bytes);
     unsafe {
         store_bytes(variable, ptr, len);
     }
@@ -135,7 +138,7 @@ pub fn get_bool(variable: u32) -> u32 {
     unsafe {
         let ptr_packed = get_bytes(variable);
         let data = slice::from_raw_parts((ptr_packed >> 32) as *mut u8, (ptr_packed as u16).into());
-        if u32::from_be_bytes(data.try_into().unwrap()) == 0 {
+        if u32::from_be_bytes(data.try_into().unwrap_or_default()) == 0 {
             0
         } else {
             1
@@ -174,10 +177,10 @@ pub fn get_mapping_u256_bytes32(id: u32, key: U256) -> FixedBytes<32> {
 }
 
 pub fn store_mapping_u64_bytes32(id: u32, key: u64, value: FixedBytes<32>) {
-    let key = key.to_be_bytes();
+    let key = key.to_be_bytes().to_vec();
     let ptr_key = key.as_ptr() as u32;
     let len_key = key.len() as u32;
-
+    std::mem::forget(key);
     // get ptr and len of value. forget the value.
     let value_bytes = value.abi_encode();
     let ptr = value_bytes.as_ptr() as u32;
@@ -188,10 +191,10 @@ pub fn store_mapping_u64_bytes32(id: u32, key: u64, value: FixedBytes<32>) {
 }
 
 pub fn get_mapping_u64_bytes32(id: u32, key: u64) -> FixedBytes<32> {
-    let key = key.to_be_bytes();
+    let key = key.to_be_bytes().to_vec();
     let ptr_key = key.as_ptr() as u32;
     let len_key = key.len() as u32;
-
+    std::mem::forget(key);
     unsafe {
         let ptr_packed = get_dynamic_bytes(id, ptr_key, len_key);
         let data = slice::from_raw_parts((ptr_packed >> 32) as *mut u8, (ptr_packed as u16).into());
@@ -200,10 +203,10 @@ pub fn get_mapping_u64_bytes32(id: u32, key: u64) -> FixedBytes<32> {
 }
 
 pub fn store_mapping_u32_bytes32(id: u32, key: u32, value: FixedBytes<32>) {
-    let key = key.to_be_bytes();
+    let key = key.to_be_bytes().to_vec();
     let ptr_key = key.as_ptr() as u32;
     let len_key = key.len() as u32;
-
+    std::mem::forget(key);
     let value_bytes = value.abi_encode();
     let ptr = value_bytes.as_ptr() as u32;
     let len = value_bytes.len() as u32;
@@ -212,9 +215,10 @@ pub fn store_mapping_u32_bytes32(id: u32, key: u32, value: FixedBytes<32>) {
 }
 
 pub fn get_mapping_u32_bytes32(id: u32, key: u32) -> FixedBytes<32> {
-    let key = key.to_be_bytes();
+    let key = key.to_be_bytes().to_vec();
     let ptr_key = key.as_ptr() as u32;
     let len_key = key.len() as u32;
+    std::mem::forget(key);
 
     unsafe {
         let ptr_packed = get_dynamic_bytes(id, ptr_key, len_key);

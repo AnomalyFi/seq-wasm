@@ -31,7 +31,7 @@ var (
 
 // SolGengnarkPrecompileInputs is an auto generated low-level Go binding around an user-defined struct.
 type SolGengnarkPrecompileInputs struct {
-	ProgramVKeyHash [32]byte
+	ProgramVKeyHash []byte
 	PublicValues    []byte
 	ProofBytes      []byte
 	ProgramVKey     []byte
@@ -39,7 +39,7 @@ type SolGengnarkPrecompileInputs struct {
 
 // SolGenMetaData contains all meta data concerning the SolGen contract.
 var SolGenMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"programVKeyHash\",\"type\":\"bytes32\"},{\"internalType\":\"bytes\",\"name\":\"publicValues\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"proofBytes\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"programVKey\",\"type\":\"bytes\"}],\"internalType\":\"structSolGen.gnarkPrecompileInputs\",\"name\":\"inputs\",\"type\":\"tuple\"}],\"name\":\"gnarkPrecompile\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[{\"components\":[{\"internalType\":\"bytes\",\"name\":\"programVKeyHash\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"publicValues\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"proofBytes\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"programVKey\",\"type\":\"bytes\"}],\"internalType\":\"structSolGen.gnarkPrecompileInputs\",\"name\":\"inputs\",\"type\":\"tuple\"}],\"name\":\"gnarkPrecompile\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
 }
 
 // SolGenABI is the input ABI used to generate the binding from.
@@ -188,23 +188,23 @@ func (_SolGen *SolGenTransactorRaw) Transact(opts *bind.TransactOpts, method str
 	return _SolGen.Contract.contract.Transact(opts, method, params...)
 }
 
-// GnarkPrecompile is a paid mutator transaction binding the contract method 0xf093d747.
+// GnarkPrecompile is a paid mutator transaction binding the contract method 0x6d90be9d.
 //
-// Solidity: function gnarkPrecompile((bytes32,bytes,bytes,bytes) inputs) returns(bool)
+// Solidity: function gnarkPrecompile((bytes,bytes,bytes,bytes) inputs) returns(bool)
 func (_SolGen *SolGenTransactor) GnarkPrecompile(opts *bind.TransactOpts, inputs SolGengnarkPrecompileInputs) (*types.Transaction, error) {
 	return _SolGen.contract.Transact(opts, "gnarkPrecompile", inputs)
 }
 
-// GnarkPrecompile is a paid mutator transaction binding the contract method 0xf093d747.
+// GnarkPrecompile is a paid mutator transaction binding the contract method 0x6d90be9d.
 //
-// Solidity: function gnarkPrecompile((bytes32,bytes,bytes,bytes) inputs) returns(bool)
+// Solidity: function gnarkPrecompile((bytes,bytes,bytes,bytes) inputs) returns(bool)
 func (_SolGen *SolGenSession) GnarkPrecompile(inputs SolGengnarkPrecompileInputs) (*types.Transaction, error) {
 	return _SolGen.Contract.GnarkPrecompile(&_SolGen.TransactOpts, inputs)
 }
 
-// GnarkPrecompile is a paid mutator transaction binding the contract method 0xf093d747.
+// GnarkPrecompile is a paid mutator transaction binding the contract method 0x6d90be9d.
 //
-// Solidity: function gnarkPrecompile((bytes32,bytes,bytes,bytes) inputs) returns(bool)
+// Solidity: function gnarkPrecompile((bytes,bytes,bytes,bytes) inputs) returns(bool)
 func (_SolGen *SolGenTransactorSession) GnarkPrecompile(inputs SolGengnarkPrecompileInputs) (*types.Transaction, error) {
 	return _SolGen.Contract.GnarkPrecompile(&_SolGen.TransactOpts, inputs)
 }

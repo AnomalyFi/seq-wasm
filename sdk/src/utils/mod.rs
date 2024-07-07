@@ -17,7 +17,7 @@ impl TxContext {
 
 sol!(
     struct gnarkPrecompileInputs{
-        bytes32 programVKeyHash;
+        bytes programVKeyHash;
         bytes publicValues;
         bytes proofBytes;
         bytes programVKey;
