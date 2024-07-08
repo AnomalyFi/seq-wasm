@@ -307,3 +307,5 @@ func runtime(ctxWasm context.Context, mapper map[string][]byte, wasmByte []byte)
 	allocate_ptr = mod.ExportedFunction("allocate_ptr")
 	return mod, allocate_ptr, nil
 }
+
+func main() {}

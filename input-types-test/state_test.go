@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"encoding/hex"
-	"io/ioutil"
+	"os"
 	"strconv"
 	"testing"
 
@@ -11,11 +11,11 @@ import (
 )
 
 func TestState(t *testing.T) {
-	wasmByte, _ := ioutil.ReadFile("../target/wasm32-unknown-unknown/release/input_types_test.wasm")
+	wasmByte, _ := os.ReadFile("../target/wasm32-unknown-unknown/release/input_types_test.wasm")
 
 	ctxWasm := context.Background()
 	mapper := map[string][]byte{
-		"0": {0, 1},
+		"0": {0},
 	}
 
 	mod, _, err := runtime(ctxWasm, mapper, wasmByte)

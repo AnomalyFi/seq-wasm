@@ -102,6 +102,7 @@ impl UpdateProgramVkeyInput {
         )
     }
 }
+
 impl VAInput {
     pub fn new(ptr: *const u8, len: u32) -> Self {
         let va_input = unsafe { slice::from_raw_parts(ptr, (len as u16).into()) };

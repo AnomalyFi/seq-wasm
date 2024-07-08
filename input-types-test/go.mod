@@ -5,7 +5,7 @@ go 1.22
 toolchain go1.22.2
 
 require (
-	github.com/AnomalyFi/hypersdk v0.0.0-00010101000000-000000000000
+	github.com/AnomalyFi/hypersdk v0.9.4-alpha.1.0.20240703090732-081d488afa76
 	github.com/consensys/gnark v0.10.1-0.20240504023521-d9bfacd7cb60
 	github.com/consensys/gnark-crypto v0.12.2-0.20240504013751-564b6f724c3b
 	github.com/ethereum/go-ethereum v1.13.14
@@ -61,4 +61,3 @@ require (
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
-replace github.com/AnomalyFi/hypersdk => ../../hypersdk

@@ -17,6 +17,8 @@ pub extern "C" fn function(tx_context: *const TxContext, ptr: *const u8, len: u3
 
 - every contract should have a `initializer`, which will be called during contract deployment. If the contract does not have need for initializer, use a no-op function as `initializer`.
 
+- Note: It is recommended not to perform any state actions before unpacking function inputs. Performing state actions before results in a changed memory layout.
+
 ## Modules
 
 ### Allocator:

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -14,11 +13,11 @@ import (
 
 func TestBlobStream(t *testing.T) {
 
-	wasmByte, _ := ioutil.ReadFile("../target/wasm32-unknown-unknown/release/blobstream_contracts_rust.wasm")
+	wasmByte, _ := os.ReadFile("../target/wasm32-unknown-unknown/release/blobstream_contracts_rust.wasm")
 
 	ctxWasm := context.Background()
 	mapper := map[string][]byte{
-		"0": {0, 1, 2, 3},
+		"0": {0},
 	}
 
 	vkey, err := os.ReadFile("../vk.bin")

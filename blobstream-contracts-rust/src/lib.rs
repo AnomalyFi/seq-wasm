@@ -20,7 +20,7 @@ const STATIC_FROZEN: u32 = 1;
 const STATIC_GUARDIAN: u32 = 2;
 const STATIC_LATESTBLOCK: u32 = 3;
 const STATIC_STATE_PROOFNONCE: u32 = 4;
-const STATIC_BLOBSTREAM_PROGRAM_VKEY_HASH: u32 = 5; // sha256 hash of the verification key.
+const STATIC_BLOBSTREAM_PROGRAM_VKEY_HASH: u32 = 5; // hash of vk produced for blobstream ELF.
 const STATIC_BLOBSTREAM_PROGRAM_VKEY: u32 = 6; // actual verification key.
 
 // ids for storing dynamic variables.
@@ -71,7 +71,7 @@ pub extern "C" fn update_freeze(tx_context: *const TxContext, ptr: *const u8, le
     let freeze = UpdateFreezeInput::new(ptr, len).freeze;
 
     // Fetch the guardian address from the state and check if the msg_sender is the guardian.
-    let gaurdian = state::get_address(STATIC_GUARDIAN).try_into().unwrap();
+    let gaurdian = state::get_address(STATIC_GUARDIAN);
     if msg_sender != gaurdian {
         // msg_sender is not the guardian, return false.
         return false;
@@ -144,10 +144,7 @@ pub extern "C" fn update_program_vkey(
 pub extern "C" fn commit_header_range(_: *const TxContext, ptr: *const u8, len: u32) -> bool {
     // unpack proof and public values from CommitHeaderRangeInput.
     let (proof, public_values) = CommitHeaderRangeInput::new(ptr, len).unpack();
-    // if contract is frozen or not initialized, return false.
-    if is_frozen() || !is_initialized() {
-        return false;
-    }
+
     let (
         po_trusted_header_hash,
         target_header_hash,
@@ -156,6 +153,11 @@ pub extern "C" fn commit_header_range(_: *const TxContext, ptr: *const u8, len: 
         target_block,
         _,
     ) = CommitHeaderRangeInput::new(ptr, len).unpack_po();
+
+    // if contract is frozen or not initialized, return false.
+    if is_frozen() || !is_initialized() {
+        return false;
+    }
 
     // fetch the latest block and trusted header hash from the state.
     let latest_block = state::get_u64(STATIC_LATESTBLOCK);
@@ -216,13 +218,13 @@ pub extern "C" fn commit_header_range(_: *const TxContext, ptr: *const u8, len: 
 #[cfg_attr(all(target_arch = "wasm32"), export_name = "verify_attestation")]
 #[no_mangle]
 pub extern "C" fn verify_attestation(_: *const TxContext, ptr: *const u8, len: u32) -> bool {
+    // Decode the inputs from the VAInput struct.
+    let (proof_nonce, tuple, proof) = VAInput::new(ptr, len).unpack();
+
     // If the contract is frozen or not initialized, return false.
     if is_frozen() || !is_initialized() {
         return false;
     }
-
-    // Decode the inputs from the VAInput struct.
-    let (proof_nonce, tuple, proof) = VAInput::new(ptr, len).unpack();
 
     // Fetch the state proof nonce and check if the proof nonce is valid.
     let state_proof_nonce = state::get_u256(STATIC_STATE_PROOFNONCE);
