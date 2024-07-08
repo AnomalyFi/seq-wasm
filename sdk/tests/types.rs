@@ -8,6 +8,12 @@ fn test_address_correct_len() {
 }
 
 #[test]
+fn test_empty_address() {
+    let address = Address::default();
+    assert_eq!(address.as_bytes(), &[0; Address::LEN]);
+}
+
+#[test]
 fn test_id_correct_len() {
     let a_b = vec![0u8; ID::LEN];
     let id = ID::new(a_b.try_into().unwrap());
@@ -16,6 +22,6 @@ fn test_id_correct_len() {
 
 #[test]
 fn test_empty_id() {
-    let id = ID::empty_id();
+    let id = ID::default();
     assert_eq!(id.as_bytes(), &[0; ID::LEN]);
 }

@@ -39,7 +39,7 @@ pub extern "C" fn initializer(tx_context: *const TxContext, ptr: *const u8, len:
     }
 
     // Decode msg_sender from tx_context and inputs from IntializerInput.
-    let msg_sender = msg_sender(tx_context);
+    let msg_sender = TxContext::unpack(tx_context).msg_sender();
     let (height, header, blobstream_program_vkey_hash, blobstream_program_vkey) =
         InitializerInput::new(ptr, len).unpack();
 
@@ -63,7 +63,7 @@ pub extern "C" fn initializer(tx_context: *const TxContext, ptr: *const u8, len:
 #[no_mangle]
 pub extern "C" fn update_freeze(tx_context: *const TxContext, ptr: *const u8, len: u32) -> bool {
     // Decode msg_sender from tx_context and inputs from UpdateFreezeInput.
-    let msg_sender = msg_sender(tx_context);
+    let msg_sender = TxContext::unpack(tx_context).msg_sender();
     let freeze = UpdateFreezeInput::new(ptr, len).freeze;
 
     // Fetch the guardian address from the state and check if the msg_sender is the guardian.
@@ -88,7 +88,7 @@ pub extern "C" fn update_genesis_state(
     len: u32,
 ) -> bool {
     // Decode msg_sender from tx_context and inputs from UpdateGenesisStateInput.
-    let msg_sender = msg_sender(tx_context);
+    let msg_sender = TxContext::unpack(tx_context).msg_sender();
     let (height, header) = UpdateGenesisStateInput::new(ptr, len).unpack();
 
     // Fetch the guardian address from the state and check if the msg_sender is the guardian.
@@ -114,7 +114,7 @@ pub extern "C" fn update_program_vkey(
     len: u32,
 ) -> bool {
     // Decode msg_sender from tx_context and inputs from UpdateGenesisStateInput.
-    let msg_sender = msg_sender(tx_context);
+    let msg_sender = TxContext::unpack(tx_context).msg_sender();
     let (program_vkey_hash, program_vkey) = UpdateProgramVkeyInput::new(ptr, len).unpack();
 
     // Fetch the guardian address from the state and check if the msg_sender is the guardian.
@@ -245,9 +245,4 @@ fn is_initialized() -> bool {
     } else {
         false
     }
-}
-
-fn msg_sender(tx_context: *const TxContext) -> types::Address {
-    let tx_context = unsafe { &*tx_context };
-    tx_context.msg_sender()
 }
