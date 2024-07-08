@@ -1,6 +1,5 @@
 target/
 .vscode/
-solidity-gen
 
 # Added by cargo
 

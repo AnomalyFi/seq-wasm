@@ -1,28 +1,25 @@
-use crate::sol;
+use crate::{sol, types};
 use std::slice;
 
 #[repr(C)]
 pub struct TxContext {
     pub time_stamp: i64,
     pub msg_sender_ptr: u32,
-    pub msg_sender_len: u32,
 }
 
 impl TxContext {
-    pub fn msg_sender(&self) -> Vec<u8> {
-        unsafe { ptr_to_address_bytes(self.msg_sender_ptr, self.msg_sender_len) }
+    pub fn msg_sender(&self) -> types::Address {
+        let msg_sender_bytes =
+            unsafe { slice::from_raw_parts(self.msg_sender_ptr as *mut u8, types::Address::LEN) };
+        types::Address::new(msg_sender_bytes.try_into().unwrap())
     }
-}
-
-pub unsafe fn ptr_to_address_bytes(ptr: u32, len: u32) -> Vec<u8> {
-    slice::from_raw_parts(ptr as *mut u8, len as usize).to_vec()
 }
 
 sol!(
     struct gnarkPrecompileInputs{
-        bytes input;
-        bytes output;
-        bytes proof;
-        uint256 headerRangeFunctionIdBigInt;
+        bytes programVKeyHash;
+        bytes publicValues;
+        bytes proofBytes;
+        bytes programVKey;
     }
 );

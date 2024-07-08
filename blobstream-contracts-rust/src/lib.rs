@@ -3,35 +3,32 @@
 pub mod binary_merkle_tree;
 pub mod input_type;
 
-use std::str::FromStr;
-
-// crate imports
+// crate imports.
 use input_type::{
-    BinaryMerkleProof, CommitHeaderRangeInput, InitializerInput, InputHashPacker, LeafDigestPacker,
-    NodeDigestPacker, OutputBreaker, UpdateFreezeInput, VAInput,
+    BinaryMerkleProof, CommitHeaderRangeInput, InitializerInput, LeafDigestPacker,
+    NodeDigestPacker, UpdateFreezeInput, UpdateGenesisStateInput, UpdateProgramVkeyInput, VAInput,
 };
 
-// seq wasm sdk
+// seq wasm sdk imports.
 pub use seq_wasm_sdk::allocator::*;
-use seq_wasm_sdk::slice;
-use seq_wasm_sdk::state;
-use seq_wasm_sdk::utils::TxContext;
-use seq_wasm_sdk::{fixed_bytes, sol, Bytes, FixedBytes, FromHex, SolType, SolValue, U256};
+use seq_wasm_sdk::{precompiles, state, types, utils::TxContext};
+use seq_wasm_sdk::{slice, sol, Bytes, FixedBytes, FromHex, SolType, SolValue, U256};
 
 // get state variables enum from program vm.
 const STATIC_ISINITIALIZED: u32 = 0;
 const STATIC_FROZEN: u32 = 1;
-const STATIC_OWNER: u32 = 2;
+const STATIC_GUARDIAN: u32 = 2;
 const STATIC_LATESTBLOCK: u32 = 3;
 const STATIC_STATE_PROOFNONCE: u32 = 4;
+const STATIC_BLOBSTREAM_PROGRAM_VKEY_HASH: u32 = 5; // sha256 hash of the verification key.
+const STATIC_BLOBSTREAM_PROGRAM_VKEY: u32 = 6; // actual verification key.
 
-// the below represnted values act as an offset. we need to make sure collisions will not happen
-// tune with the offsets
-const DYNAMIC_BLOCK_HEIGHT_TO_HEADER_HASH: u32 = 2;
-const DYNAMIC_STATE_DATA_COMMITMENTS: u32 = 3;
+// ids for storing dynamic variables.
+const MAPPING_BLOCK_HEIGHT_TO_HEADER_HASH_ID: u32 = 1;
+const MAPPING_STATE_DATA_COMMITMENTS_ID: u32 = 2;
 
 // CONSTANT VARIABLES
-const DATA_COMMITMENT_MAX: u64 = 10_000;
+const DATA_COMMITMENT_MAX: u64 = 1_000;
 
 #[cfg_attr(all(target_arch = "wasm32"), export_name = "initializer")]
 #[no_mangle]
@@ -40,89 +37,169 @@ pub extern "C" fn initializer(tx_context: *const TxContext, ptr: *const u8, len:
         // contract already initialized
         return false;
     }
+
+    // Decode msg_sender from tx_context and inputs from IntializerInput.
     let msg_sender = msg_sender(tx_context);
-    let (height, header) = InitializerInput::new(ptr, len).unpack();
+    let (height, header, blobstream_program_vkey_hash, blobstream_program_vkey) =
+        InitializerInput::new(ptr, len).unpack();
+
+    // Store the initial state variables and set contract as initialized.
     state::store_u64(STATIC_LATESTBLOCK, height);
-    state::store_mapping_u64_bytes32(DYNAMIC_BLOCK_HEIGHT_TO_HEADER_HASH, height, header);
+    state::store_mapping_u64_bytes32(MAPPING_BLOCK_HEIGHT_TO_HEADER_HASH_ID, height, header);
     state::store_u256(STATIC_STATE_PROOFNONCE, U256::from(1));
-    state::store_vec(STATIC_OWNER, &msg_sender);
+    state::store_address(STATIC_GUARDIAN, &msg_sender);
+    state::store_vec(
+        STATIC_BLOBSTREAM_PROGRAM_VKEY_HASH,
+        &blobstream_program_vkey_hash,
+    );
+    state::store_vec(STATIC_BLOBSTREAM_PROGRAM_VKEY, &blobstream_program_vkey);
     state::store_bool(STATIC_ISINITIALIZED, 1);
+
+    // Call executed without any errors, return true.
     true
 }
 
 #[cfg_attr(all(target_arch = "wasm32"), export_name = "update_freeze")]
 #[no_mangle]
 pub extern "C" fn update_freeze(tx_context: *const TxContext, ptr: *const u8, len: u32) -> bool {
+    // Decode msg_sender from tx_context and inputs from UpdateFreezeInput.
     let msg_sender = msg_sender(tx_context);
-    let owner = state::get_vec(STATIC_OWNER);
-    if msg_sender != owner {
-        // not an owner
+    let freeze = UpdateFreezeInput::new(ptr, len).freeze;
+
+    // Fetch the guardian address from the state and check if the msg_sender is the guardian.
+    let gaurdian = state::get_address(STATIC_GUARDIAN).try_into().unwrap();
+    if msg_sender != gaurdian {
+        // msg_sender is not the guardian, return false.
         return false;
     }
-    let freeze = UpdateFreezeInput::new(ptr, len).freeze;
+
+    // msg_sender is the guardian, update the freeze state variable.
     state::store_bool(STATIC_FROZEN, freeze as u32);
+
+    // Call executed without any errors, return true.
     true
 }
 
-#[cfg_attr(all(target_arch = "wasm32"), export_name = "commit_header_range")]
+#[cfg_attr(all(target_arch = "wasm32"), export_name = "update_genesis_state")]
 #[no_mangle]
-pub unsafe extern "C" fn commit_header_range(
-    _: *const TxContext,
+pub extern "C" fn update_genesis_state(
+    tx_context: *const TxContext,
     ptr: *const u8,
     len: u32,
 ) -> bool {
-    if is_frozen() && !is_initialized() {
+    // Decode msg_sender from tx_context and inputs from UpdateGenesisStateInput.
+    let msg_sender = msg_sender(tx_context);
+    let (height, header) = UpdateGenesisStateInput::new(ptr, len).unpack();
+
+    // Fetch the guardian address from the state and check if the msg_sender is the guardian.
+    let gaurdian = state::get_address(STATIC_GUARDIAN);
+    if msg_sender != gaurdian {
+        // msg_sender is not the guardian, return false.
         return false;
     }
-    let (target_block, input, output, proof) = CommitHeaderRangeInput::new(ptr, len).unpack();
-    let trusted_block = state::get_u64(STATIC_LATESTBLOCK);
+
+    // msg_sender is the guardian, update the genesis state variables.
+    state::store_mapping_u64_bytes32(MAPPING_BLOCK_HEIGHT_TO_HEADER_HASH_ID, height, header);
+    state::store_u64(STATIC_LATESTBLOCK, height);
+
+    // Call executed without any errors, return true.
+    true
+}
+
+#[cfg_attr(all(target_arch = "wasm32"), export_name = "update_program_vkey")]
+#[no_mangle]
+pub extern "C" fn update_program_vkey(
+    tx_context: *const TxContext,
+    ptr: *const u8,
+    len: u32,
+) -> bool {
+    // Decode msg_sender from tx_context and inputs from UpdateGenesisStateInput.
+    let msg_sender = msg_sender(tx_context);
+    let (program_vkey_hash, program_vkey) = UpdateProgramVkeyInput::new(ptr, len).unpack();
+
+    // Fetch the guardian address from the state and check if the msg_sender is the guardian.
+    let gaurdian = state::get_address(STATIC_GUARDIAN);
+    if msg_sender != gaurdian {
+        // msg_sender is not the guardian, return false.
+        return false;
+    }
+
+    // msg_sender is the guardian, update program vkey.
+    state::store_vec(STATIC_BLOBSTREAM_PROGRAM_VKEY_HASH, &program_vkey_hash);
+    state::store_vec(STATIC_BLOBSTREAM_PROGRAM_VKEY, &program_vkey);
+
+    // Call executed without any errors, return true.
+    true
+}
+
+/// Commits the new header at targetBlock and the data commitment for the block range [latestBlock, targetBlock].
+#[cfg_attr(all(target_arch = "wasm32"), export_name = "commit_header_range")]
+#[no_mangle]
+pub extern "C" fn commit_header_range(_: *const TxContext, ptr: *const u8, len: u32) -> bool {
+    // unpack proof and public values from CommitHeaderRangeInput.
+    let (proof, public_values) = CommitHeaderRangeInput::new(ptr, len).unpack();
+    // if contract is frozen or not initialized, return false.
+    if is_frozen() || !is_initialized() {
+        return false;
+    }
+    let (
+        po_trusted_header_hash,
+        target_header_hash,
+        data_commitment,
+        po_trusted_block,
+        target_block,
+        _,
+    ) = CommitHeaderRangeInput::new(ptr, len).unpack_po();
+
+    // fetch the latest block and trusted header hash from the state.
+    let latest_block = state::get_u64(STATIC_LATESTBLOCK);
     let trusted_header =
-        state::get_mapping_u64_bytes32(DYNAMIC_BLOCK_HEIGHT_TO_HEADER_HASH, trusted_block);
-    let proof_nonce = state::get_u256(STATIC_STATE_PROOFNONCE);
+        state::get_mapping_u64_bytes32(MAPPING_BLOCK_HEIGHT_TO_HEADER_HASH_ID, latest_block);
+
+    // sanity check public values and state values.
     if trusted_header == FixedBytes::<32>::new([0; 32]) {
         return false;
     }
-    let packed_input = InputHashPacker {
-        latest_block: trusted_block,
-        trusted_header,
-        target_block,
-    }
-    .abi_encode_packed();
-    if packed_input != input {
-        // proof built on a wrong block
+    if po_trusted_block != latest_block {
         return false;
     }
-    // checking invarients before verifying the proof
-    if target_block <= trusted_block || target_block - trusted_block > DATA_COMMITMENT_MAX {
+    if trusted_header != po_trusted_header_hash {
         return false;
     }
-    let header_range_function_id_big_int = U256::from_str(
-        "10310189448205051960894735306968713236725543474929808083983647516402594023487",
-    )
-    .unwrap();
-    if state::gnark_verify(
-        input,
-        output.clone(),
+    if target_block <= latest_block || target_block - latest_block > DATA_COMMITMENT_MAX {
+        return false;
+    }
+
+    // fetch blobstream program vkey and program vkey hash from the state.
+    let blobstream_program_vkey_hash = state::get_vec(STATIC_BLOBSTREAM_PROGRAM_VKEY_HASH);
+    let blobstream_program_vkey = state::get_vec(STATIC_BLOBSTREAM_PROGRAM_VKEY);
+    // verify sp1 plonk proof.
+    if precompiles::gnark_verify(
+        blobstream_program_vkey_hash,
+        public_values,
         proof,
-        header_range_function_id_big_int,
+        blobstream_program_vkey,
     ) {
-        // valid proof
-        let (target_header, data_commitment) = OutputBreaker::decode(&output);
+        // proof is valid, update state variables.
+        let proof_nonce = state::get_u256(STATIC_STATE_PROOFNONCE);
+
         state::store_mapping_u64_bytes32(
-            DYNAMIC_BLOCK_HEIGHT_TO_HEADER_HASH,
+            MAPPING_BLOCK_HEIGHT_TO_HEADER_HASH_ID,
             target_block,
-            target_header,
+            target_header_hash,
         );
         state::store_mapping_u256_bytes32(
-            DYNAMIC_STATE_DATA_COMMITMENTS,
+            MAPPING_STATE_DATA_COMMITMENTS_ID,
             proof_nonce,
             data_commitment,
         );
         state::store_u256(STATIC_STATE_PROOFNONCE, proof_nonce + U256::from(1));
         state::store_u64(STATIC_LATESTBLOCK, target_block);
+
+        // Call executed without any errors, return true.
         true
     } else {
-        // invalid proof
+        // proof is invalid, return false.
         false
     }
 }
@@ -133,20 +210,25 @@ pub unsafe extern "C" fn commit_header_range(
 #[cfg_attr(all(target_arch = "wasm32"), export_name = "verify_attestation")]
 #[no_mangle]
 pub extern "C" fn verify_attestation(_: *const TxContext, ptr: *const u8, len: u32) -> bool {
-    if is_frozen() && is_initialized() {
+    // If the contract is frozen or not initialized, return false.
+    if is_frozen() || !is_initialized() {
         return false;
     }
 
+    // Decode the inputs from the VAInput struct.
     let (proof_nonce, tuple, proof) = VAInput::new(ptr, len).unpack();
 
+    // Fetch the state proof nonce and check if the proof nonce is valid.
     let state_proof_nonce = state::get_u256(STATIC_STATE_PROOFNONCE);
-    if proof_nonce > state_proof_nonce {
+    if proof_nonce > state_proof_nonce || proof_nonce == U256::from(0) {
         return false;
     }
-    let root = state::get_mapping_u256_bytes32(DYNAMIC_STATE_DATA_COMMITMENTS, proof_nonce);
-    let is_valid_proof = binary_merkle_tree::verify(root, proof, tuple.abi_encode().into());
 
-    is_valid_proof
+    // Fetch the data commitment from the state and verify the proof.
+    let root = state::get_mapping_u256_bytes32(MAPPING_STATE_DATA_COMMITMENTS_ID, proof_nonce);
+    let is_proof_valid = binary_merkle_tree::verify(root, proof, tuple.abi_encode().into());
+
+    is_proof_valid
 }
 
 fn is_frozen() -> bool {
@@ -165,7 +247,7 @@ fn is_initialized() -> bool {
     }
 }
 
-fn msg_sender(tx_context: *const TxContext) -> Vec<u8> {
+fn msg_sender(tx_context: *const TxContext) -> types::Address {
     let tx_context = unsafe { &*tx_context };
     tx_context.msg_sender()
 }

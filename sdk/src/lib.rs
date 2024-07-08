@@ -4,11 +4,13 @@ pub extern crate core;
 pub extern crate wee_alloc;
 
 pub mod allocator;
+pub mod precompiles;
 pub mod state;
+pub mod types;
 pub mod utils;
 // alloy re-exports
 pub use alloy_primitives::{
-    bytes, fixed_bytes, hex::FromHex, keccak256, Bytes, FixedBytes, Uint, B256, U256, U64,
+    bytes, fixed_bytes, hex::FromHex, keccak256, Address, Bytes, FixedBytes, Uint, B256, U256, U64,
 };
 pub use alloy_sol_macro::sol;
 pub use alloy_sol_types::{SolType, SolValue};

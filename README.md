@@ -1,91 +1,28 @@
 # SEQ-WASM Framework
 
-Branch X is the implementation of [BlobstreamX](https://github.com/succinctlabs/blobstreamx/tree/main/contracts/src/BlobstreamX.sol)
-
-- Implementation of BlobstreamX over SEQ involves adding a syscall/precompile to wasm runtime to verify the gnark proof.
-
-- Block header transition check(trusted block -> new block) should be satisfied and implemented properly, so arbitary proofs are not submitted.
-
-- Fall backs for fund dispersion needs to be implemented.
-
-- Necessary design decisions will be either explained here or in the relayer(to be built[this realys the proof automatically]) or in add-wasm branch of nodekit-seq.
-
-- Next header is not implemented in the SEQ version of Blobstream X.
-
-- NOTE: Vector X by succinctlabs is a WIP. Rapid changes happening and a few contracts are not open sourced.
-
-- NOTE: Not sure if verification key is same for both BlobstreamX and vectorX. BlobstreamX uses aleo's key, vectorx??
 TODO:
-- [x] Remove redundent code.
-- [x] Raw blobstream x translation with modifications to contain gateway functionality in itself.
-    - We essentially need commitNextHeader, commitHeaderRange and verify attestation.
-    - Change intializer implementation.
-    - implement lock functionality.
-    - state variables change.
-- [x] Add precompile in wasm runtime. 
-- [ ] Add tests. 
-- [ ] Fallback mechanisms acting as post-execution hooks in wasm runtime. Ex: disburse fee after valid attesatation, call status fallback -> success or failure. may be something similar to events.
+- [x] State revamp
 
-- [ ] Possibly state revamp into more dyanmic generations.
+- [x] RPC for fetching values at contract storage slot with rust sdk support.
+
+- [x] Add tests. 
+    - [x] for simple state 
+    - [x] for dynamic state 
+
+- [x] Fallbacks getBalance and setBalance for fund dispersion.
+
+- [x] Transfer native token TKN, with empty ID.
+
 - [ ] Use macros for public functions and state variables.
-- [ ] Switch to JSON types.??
 
-- [ ] Call initializer during contract deployment.
-- [x] Don't allow initializer to be called after contract deployment.
-- [x] Don't allow functions to execute if initializer is not called.
-- [x] implement onlyOwner modifier functionality.
-- [x] Add header range funciton id.
+- [x] Blobstream wasm contract size ~110KiB is in limits. If size increases by a large factor, then try optimizing by inlining state functions.
 
-- [x] Migrate reusable code to SDK
-- [x] Migrate allocator to SDK
-- [x] Migrate state to SDK
-- [x] Migrate utils to SDK
+- [x] Call initializer during contract deployment.
 
-- [ ] Change rust memory allocator
+- [ ] Change rust memory allocator.
 
-- [ ] automate github tests to run on wasm32-unknown-unknown
+- [x] automate github tests to run on wasm32-unknown-unknown
 
-- [ ] use circuit digest bigInt instead of circuit digest hash for header_range_function_id ??
+- [x] consider caching the abi(initialising abi is taking significant time)
 
-- [ ] consider caching the abi(initialising abi is taking significant time), verification key(disk read takes significant time) for better performance.
-
-- [ ] How about hashing the input & output bytes in wasm contract itself and passing the hashed values instead of sha256 hashing in go? how would be contract sizes get effected with this and what could be the performance improvements?
-
-- [ ] Cache circuit digest hash too, instead of hashing every time.
-Stateful Wasm contract support for SEQ
-
-Every rust contract should implement this:
-
-```rust 
-extern crate alloc;
-extern crate core;
-extern crate wee_alloc;
-
-use std::alloc::{alloc, Layout};
-use std::mem::MaybeUninit;
-use alloc::vec::Vec;
-use crate::tx::Info;
-
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
-
-/// Allocates size bytes and leaks the pointer where they start.
-#[cfg_attr(all(target_arch = "wasm32"), export_name = "allocate_ptr")]
-#[no_mangle]
-pub extern "C" fn allocate(size: usize) -> *mut u8 {
-    // Allocate the amount of bytes needed.
-    let vec: Vec<MaybeUninit<u8>> = Vec::with_capacity(size);
-
-    // into_raw leaks the memory to the caller.
-    Box::into_raw(vec.into_boxed_slice()) as *mut u8
-}
-
-#[cfg_attr(all(target_arch = "wasm32"), export_name = "deallocate_ptr")]
-#[no_mangle]
-pub unsafe extern "C" fn deallocate(ptr: *mut u8, size: usize) {
-    let _ = Vec::from_raw_parts(ptr, 0, size);
-}
-
-```
-
-outputs should be `u64`: 1 -> success. Anything else is a failure.
+- [ ] Handle unwrap errors. Should the program panic and runtime return error. or the error should be handled by rust program for state access?
