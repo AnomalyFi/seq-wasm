@@ -4,15 +4,14 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	_ "embed"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"strconv"
 	"strings"
+	"unsafe"
 
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/plonk"
@@ -40,6 +39,37 @@ var (
 	_ = abi.ConvertType
 )
 
+// CommitHeaderRangeInput is an auto generated low-level Go binding around an user-defined struct.
+type CommitHeaderRangeInput struct {
+	Proof        []byte
+	PublicValues []byte
+}
+
+// UpdateFreezeInput is an auto generated low-level Go binding around an user-defined struct.
+type UpdateFreezeInput struct {
+	Freeze bool
+}
+
+// UpdateGenesisStateInput is an auto generated low-level Go binding around an user-defined struct.
+type UpdateGenesisStateInput struct {
+	Height uint64
+	Header [32]byte
+}
+
+// InitializerInput is an auto generated low-level Go binding around an user-defined struct.
+type InitializerInput struct {
+	Height                    uint64
+	Header                    [32]byte
+	BlobstreamProgramVKeyHash []byte
+	BlobstreamProgramVKey     []byte
+}
+
+// UpdateProgramVkeyInput is an auto generated low-level Go binding around an user-defined struct.
+type UpdateProgramVkeyInput struct {
+	BlobstreamProgramVKeyHash []byte
+	BlobstreamProgramVKey     []byte
+}
+
 // BinaryMerkleProof is an auto generated low-level Go binding around an user-defined struct.
 type BinaryMerkleProof struct {
 	SideNodes [][32]byte
@@ -47,62 +77,53 @@ type BinaryMerkleProof struct {
 	NumLeaves *big.Int
 }
 
-// // CommitHeaderRangeInput is an auto generated low-level Go binding around an user-defined struct.
-// type CommitHeaderRangeInput struct {
-// 	TargetBlock uint64
-// 	Input       []byte
-// 	Output      []byte
-// 	Proof       []byte
-// }
-
 // DataRootTuple is an auto generated low-level Go binding around an user-defined struct.
 type DataRootTuple struct {
 	Height   *big.Int
 	DataRoot [32]byte
 }
 
-// InitializerInput is an auto generated low-level Go binding around an user-defined struct.
-// type InitializerInput struct {
-// 	Height uint64
-// 	Header [32]byte
-// }
-
-// OutputBreaker is an auto generated low-level Go binding around an user-defined struct.
-type OutputBreaker struct {
-	TargetHeader   [32]byte
-	DataCommitment [32]byte
-}
-
-// VerifyAttestationInput is an auto generated low-level Go binding around an user-defined struct.
-type VerifyAttestationInput struct {
+// VAInput is an auto generated low-level Go binding around an user-defined struct.
+type VAInput struct {
 	TupleRootNonce *big.Int
 	Tuple          DataRootTuple
 	Proof          BinaryMerkleProof
 }
 
-// MainMetaData contains all meta data concerning the Main contract.
-var MainMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[{\"components\":[{\"internalType\":\"uint64\",\"name\":\"targetBlock\",\"type\":\"uint64\"},{\"internalType\":\"bytes\",\"name\":\"input\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"output\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"proof\",\"type\":\"bytes\"}],\"internalType\":\"structinputs.CommitHeaderRangeInput\",\"name\":\"_c\",\"type\":\"tuple\"}],\"name\":\"dummyCommitHeaderRangeInput\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint64\",\"name\":\"height\",\"type\":\"uint64\"},{\"internalType\":\"bytes32\",\"name\":\"header\",\"type\":\"bytes32\"}],\"internalType\":\"structinputs.InitializerInput\",\"name\":\"_i\",\"type\":\"tuple\"}],\"name\":\"dummyInitializerInput\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"targetHeader\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"dataCommitment\",\"type\":\"bytes32\"}],\"internalType\":\"structinputs.OutputBreaker\",\"name\":\"_o\",\"type\":\"tuple\"}],\"name\":\"dummyOutputBreaker\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"_tupleRootNonce\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"height\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"dataRoot\",\"type\":\"bytes32\"}],\"internalType\":\"structinputs.DataRootTuple\",\"name\":\"_tuple\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"bytes32[]\",\"name\":\"sideNodes\",\"type\":\"bytes32[]\"},{\"internalType\":\"uint256\",\"name\":\"key\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"numLeaves\",\"type\":\"uint256\"}],\"internalType\":\"structinputs.BinaryMerkleProof\",\"name\":\"_proof\",\"type\":\"tuple\"}],\"internalType\":\"structinputs.VerifyAttestationInput\",\"name\":\"_v\",\"type\":\"tuple\"}],\"name\":\"dummyVerifyAttestationInput\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+// BlobStreamInputsMetaData contains all meta data concerning the BlobStreamInputs contract.
+var BlobStreamInputsMetaData = &bind.MetaData{
+	ABI: "[{\"inputs\":[{\"components\":[{\"internalType\":\"bytes\",\"name\":\"proof\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"publicValues\",\"type\":\"bytes\"}],\"internalType\":\"structCommitHeaderRangeInput\",\"name\":\"inputs\",\"type\":\"tuple\"}],\"name\":\"commitHeaderRange\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint64\",\"name\":\"height\",\"type\":\"uint64\"},{\"internalType\":\"bytes32\",\"name\":\"header\",\"type\":\"bytes32\"},{\"internalType\":\"bytes\",\"name\":\"blobstreamProgramVKeyHash\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"blobstreamProgramVKey\",\"type\":\"bytes\"}],\"internalType\":\"structInitializerInput\",\"name\":\"inputs\",\"type\":\"tuple\"}],\"name\":\"initializer\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"bool\",\"name\":\"freeze\",\"type\":\"bool\"}],\"internalType\":\"structUpdateFreezeInput\",\"name\":\"inputs\",\"type\":\"tuple\"}],\"name\":\"updateFreeze\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint64\",\"name\":\"height\",\"type\":\"uint64\"},{\"internalType\":\"bytes32\",\"name\":\"header\",\"type\":\"bytes32\"}],\"internalType\":\"structUpdateGenesisStateInput\",\"name\":\"inputs\",\"type\":\"tuple\"}],\"name\":\"updateGenesisState\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"bytes\",\"name\":\"blobstreamProgramVKeyHash\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"blobstreamProgramVKey\",\"type\":\"bytes\"}],\"internalType\":\"structUpdateProgramVkeyInput\",\"name\":\"inputs\",\"type\":\"tuple\"}],\"name\":\"updateProgramVkey\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"tuple_root_nonce\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"height\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"dataRoot\",\"type\":\"bytes32\"}],\"internalType\":\"structDataRootTuple\",\"name\":\"tuple\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"bytes32[]\",\"name\":\"sideNodes\",\"type\":\"bytes32[]\"},{\"internalType\":\"uint256\",\"name\":\"key\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"numLeaves\",\"type\":\"uint256\"}],\"internalType\":\"structBinaryMerkleProof\",\"name\":\"proof\",\"type\":\"tuple\"}],\"internalType\":\"structVAInput\",\"name\":\"inputs\",\"type\":\"tuple\"}],\"name\":\"verifyAppend\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
 }
 
-// SolGengnarkPrecompileInputs is an auto generated low-level Go binding around an user-defined struct.
-// type GnarkPrecompileInputs struct {
-// 	ProgramVKeyHash []uint8 `json:"programVKeyHash"`
-// 	PublicValues    []uint8 `json:"publicValues"`
-// 	ProofBytes      []uint8 `json:"proofBytes"`
-// 	ProgramVKey     []uint8 `json:"programVKey"`
-// }
+var BlobStreamInputsABI, _ = BlobStreamInputsMetaData.GetAbi()
+
+type TxContext struct {
+	timestamp    int64
+	msgSenderPtr uint32
+}
+
+func txContextToBytes(c TxContext) []byte {
+	// creates array of length 2^10 and access the memory at struct c to have enough space for all the struct.
+	// [:size:size] slices array to size and fixes array size as size
+	size := unsafe.Sizeof(c)
+	bytes := (*[1 << 10]byte)(unsafe.Pointer(&c))[:size:size]
+	return bytes
+}
+
+type GnarkPrecompileInputs struct {
+	ProgramVKeyHash []uint8 `json:"programVKeyHash"`
+	PublicValues    []uint8 `json:"publicValues"`
+	ProofBytes      []uint8 `json:"proofBytes"`
+	ProgramVKey     []uint8 `json:"programVKey"`
+}
 
 // GnarkPreCompileMetaData contains all meta data concerning the SolGen contract.
 var GnarkPreCompileMetaData = &bind.MetaData{
 	ABI: "[{\"inputs\":[{\"components\":[{\"internalType\":\"bytes\",\"name\":\"programVKeyHash\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"publicValues\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"proofBytes\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"programVKey\",\"type\":\"bytes\"}],\"internalType\":\"structSolGen.gnarkPrecompileInputs\",\"name\":\"inputs\",\"type\":\"tuple\"}],\"name\":\"gnarkPrecompile\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
 }
 
-// MainABI is the input ABI used to generate the binding from.
-// Deprecated: Use MainMetaData.ABI instead.
-var MainABI, _ = MainMetaData.GetAbi() // modified
-// var GnarkABI, _ = GnarkPrecompMetaData.GetAbi()
 var GnarkPreCompileABI, _ = GnarkPreCompileMetaData.GetAbi()
+
 var mask = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 253), big.NewInt(1))
 
 type SP1Circuit struct {
@@ -126,16 +147,19 @@ type babybearExtensionVariable struct {
 	Value [4]babybearVariable
 }
 
-func main() {
-	wasmByte, _ := ioutil.ReadFile("/home/manojkgorle/nodekit/seq-wasm/blobstream-contracts-rust/target/wasm32-unknown-unknown/release/blobstream_contracts_rust.wasm")
+func runtime(ctxWasm context.Context, mapper map[string][]byte, wasmByte []byte) (api.Module, api.Function, error) {
+
 	var allocate_ptr api.Function
-	ctxWasm := context.Background()
 	r := wazero.NewRuntime(ctxWasm)
-	defer r.Close(ctxWasm)
-	mapper := map[string][]byte{
-		"0": {0},
+
+	stateStoreBytesInner := func(ctxInner context.Context, m api.Module, i uint32, ptr uint32, size uint32) {
+		slot := "slot" + strconv.Itoa(int(i))
+		bytes, ok := m.Memory().Read(ptr, size)
+		if !ok {
+			os.Exit(10)
+		}
+		mapper[slot] = bytes
 	}
-	chri := CommitHeaderRangeInput{}
 	stateGetBytesInner := func(ctxInner context.Context, m api.Module, i uint32) uint64 {
 		slot := "slot" + strconv.Itoa(int(i))
 		result := mapper[slot]
@@ -145,35 +169,36 @@ func main() {
 		m.Memory().Write(uint32(offset), result)
 		return uint64(offset)<<32 | size
 	}
-	stateStoreBytesInner := func(ctxInner context.Context, m api.Module, i uint32, ptr uint32, size uint32) {
-		slot := "slot" + strconv.Itoa(int(i))
+	stateStoreDynamicBytesInner := func(ctxInner context.Context, m api.Module, id, ptrKey, sizeOfKey, ptr, size uint32) {
+		// read key from memory.
+		key, ok := m.Memory().Read(ptrKey, sizeOfKey)
+		if !ok {
+			os.Exit(10)
+		}
+		// read value from memory.
 		bytes, ok := m.Memory().Read(ptr, size)
 		if !ok {
 			os.Exit(10)
 		}
+		slot := "slot" + strconv.Itoa(int(id)) + hex.EncodeToString(key)
 		mapper[slot] = bytes
-
 	}
-	stateGetDynamicBytesInner := func(ctxInner context.Context, m api.Module, offset uint32, key uint32) uint64 {
-		i := 128 + (offset*key)%896
-		slot := "slot" + strconv.Itoa(int(i))
+	stateGetDynamicBytesInner := func(ctxInner context.Context, m api.Module, id, ptrKey, sizeOfKey uint32) uint64 {
+		// read key from memory.
+		key, ok := m.Memory().Read(ptrKey, sizeOfKey)
+		if !ok {
+			os.Exit(10)
+		}
+		slot := "slot" + strconv.Itoa(int(id)) + hex.EncodeToString(key)
 		result := mapper[slot]
+		// write value to memory.
 		size := uint64(len(result))
 		results, _ := allocate_ptr.Call(ctxInner, size)
 		offset2 := results[0]
 		m.Memory().Write(uint32(offset2), result)
 		return uint64(offset2)<<32 | size
 	}
-	stateStoreDynamicBytesInner := func(ctxInner context.Context, m api.Module, offset uint32, key uint32, ptr uint32, size uint32) {
-		i := 128 + (offset*key)%896
-		slot := "slot" + strconv.Itoa(int(i))
-		bytes, ok := m.Memory().Read(ptr, size)
-		if !ok {
-			os.Exit(10)
-		}
-		mapper[slot] = bytes
-	}
-	gnarkVer := func(ctxInner context.Context, m api.Module, ptr uint32, size uint32) uint32 {
+	gnarkVerify := func(ctxInner context.Context, m api.Module, ptr uint32, size uint32) uint32 {
 		// read from memory
 		dataBytes, ok := m.Memory().Read(ptr, size)
 		if !ok {
@@ -185,46 +210,74 @@ func main() {
 		if err != nil {
 			return 0
 		}
-		preCompileInput := upack[0].(*GnarkPrecompileInputs)
+		preCompileInput := upack[0].(struct {
+			ProgramVKeyHash []byte `json:"programVKeyHash"`
+			PublicValues    []byte `json:"publicValues"`
+			ProofBytes      []byte `json:"proofBytes"`
+			ProgramVKey     []byte `json:"programVKey"`
+		})
 		publicValuesHash := sha256.Sum256(preCompileInput.PublicValues)
 		publicValuesB := new(big.Int).SetBytes(publicValuesHash[:])
-		publicValuesM := new(big.Int).And(publicValuesB, mask)
-		if publicValuesM.BitLen() > 253 {
+		publicValuesDigest := new(big.Int).And(publicValuesB, mask)
+		if publicValuesDigest.BitLen() > 253 {
 			return 0
 		}
+
 		sp1Circuit := SP1Circuit{
 			Vars:                 []frontend.Variable{},
 			Felts:                []babybearVariable{},
 			Exts:                 []babybearExtensionVariable{},
-			VkeyHash:             preCompileInput.ProgramVKey,
-			CommitedValuesDigest: publicValuesM,
+			VkeyHash:             string(preCompileInput.ProgramVKeyHash),
+			CommitedValuesDigest: publicValuesDigest,
 		}
 
+		// fmt.Println(sp1Circuit.VkeyHash)
+		// read vk from preCompileInput
 		vk := plonk.NewVerifyingKey(ecc.BN254)
 		_, err = vk.ReadFrom(bytes.NewBuffer(preCompileInput.ProgramVKey))
 		if err != nil {
-			fmt.Printf("failed to read vk file: %s", err)
 			return 0
 		}
 
+		// read proof from preCompileInput
 		proof := plonk.NewProof(ecc.BN254)
 		proofData, err := hex.DecodeString(string(preCompileInput.ProofBytes))
 		if err != nil {
-			panic(err)
+			return 0
 		}
 		_, err = proof.ReadFrom(bytes.NewReader(proofData))
+		if err != nil {
+			return 0
+		}
+
+		// create witness
+		wit, err := frontend.NewWitness(&sp1Circuit, ecc.BN254.ScalarField())
 		if err != nil {
 			fmt.Println(err)
 			return 0
 		}
-		wit, _ := frontend.NewWitness(&sp1Circuit, ecc.BN254.ScalarField())
-		pubWit, _ := wit.Public()
+
+		// get the public witness
+		pubWit, err := wit.Public()
+		if err != nil {
+			fmt.Println(err)
+			return 0
+		}
+
+		// verify the proof
 		err = plonk.Verify(proof, vk, pubWit)
 		if err != nil {
+			fmt.Println(err)
+			// the vk may not be corresponding to the proof or public witness are not corresponding to proofs or proof is invalid
 			return 0
 		}
 		return 1
 	}
+
+	addBalance := func(ctxInner context.Context, m api.Module) {
+		// storage.AddBalance()
+	}
+	subBalance := func(ctxInner context.Context, m api.Module) {}
 
 	// Instantiate the module
 	_, err := r.NewHostModuleBuilder("env").NewFunctionBuilder().
@@ -232,65 +285,25 @@ func main() {
 		NewFunctionBuilder().WithFunc(stateStoreBytesInner).Export("stateStoreBytes").
 		NewFunctionBuilder().WithFunc(stateStoreDynamicBytesInner).Export("stateStoreDynamicBytes").
 		NewFunctionBuilder().WithFunc(stateGetDynamicBytesInner).Export("stateGetDynamicBytes").
-		NewFunctionBuilder().WithFunc(gnarkVer).Export("gnarkVerify").
 		Instantiate(ctxWasm)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return nil, nil, err
+	}
+
+	_, err = r.NewHostModuleBuilder("precompiles").
+		NewFunctionBuilder().WithFunc(gnarkVerify).Export("gnarkVerify").
+		NewFunctionBuilder().WithFunc(addBalance).Export("addBalance").
+		NewFunctionBuilder().WithFunc(subBalance).Export("subBalance").
+		Instantiate(ctxWasm)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	mod, err := r.Instantiate(ctxWasm, wasmByte)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(2)
+		return nil, nil, err
 	}
+
 	allocate_ptr = mod.ExportedFunction("allocate_ptr")
-	deallocate_ptr := mod.ExportedFunction("deallocate_ptr")
-	tx_function := mod.ExportedFunction("initializer")
-	chr_function := mod.ExportedFunction("commit_header_range")
-
-	data := InitializerInput{
-		Height: 1,
-		Header: [32]byte(common.Hex2BytesFixed("4a5cc92ce4a0fb368c83da44ea489e4b908ce75bdc460c31c662f35fd3911ff1", 32)),
-	}
-	// Encode the parameters using the ABI packer
-	packed, err := abi.ABI.Pack(*MainABI, "dummyInitializerInput", data)
-	if err != nil {
-		fmt.Print(err)
-	}
-	packed2 := packed[4:] //@todo deal with this, either trim off when sent using relayer or trim of here
-	results, err := allocate_ptr.Call(ctxWasm, uint64(len(packed2)))
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(3)
-	}
-	inputPtr := results[0]
-	defer deallocate_ptr.Call(ctxWasm, inputPtr, uint64(len(packed2)))
-	mod.Memory().Write(uint32(inputPtr), packed2) // TODO: change
-	results, err = tx_function.Call(ctxWasm, inputPtr, uint64(len(packed2)))
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(4)
-	}
-	fmt.Println(results[0] == 1)
-
-	packed, err = abi.ABI.Pack(*MainABI, "dummyCommitHeaderRangeInput", chri)
-	if err != nil {
-		fmt.Print(err)
-	}
-	packed2 = packed[4:] //@todo deal with this, either trim off when sent using relayer or trim of here
-	results, err = allocate_ptr.Call(ctxWasm, uint64(len(packed2)))
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(3)
-	}
-	inputPtr = results[0]
-	defer deallocate_ptr.Call(ctxWasm, inputPtr, uint64(len(packed2)))
-	mod.Memory().Write(uint32(inputPtr), packed2) // TODO: change
-	results, err = chr_function.Call(ctxWasm, inputPtr, uint64(len(packed2)))
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(4)
-	}
-	fmt.Println([]byte{byte(results[0])})
+	return mod, allocate_ptr, nil
 }

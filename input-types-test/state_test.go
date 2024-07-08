@@ -1,122 +1,24 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/hex"
-	"errors"
-	"fmt"
 	"io/ioutil"
-	"math/big"
-	"os"
 	"strconv"
-	"strings"
 	"testing"
-	"unsafe"
 
-	"github.com/AnomalyFi/hypersdk/codec"
-	"github.com/consensys/gnark-crypto/ecc"
-	"github.com/consensys/gnark/backend/plonk"
-	"github.com/consensys/gnark/frontend"
-	ethereum "github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/event"
 	"github.com/stretchr/testify/require"
-	"github.com/tetratelabs/wazero"
-	"github.com/tetratelabs/wazero/api"
 )
-
-// Reference imports to suppress errors if they are not otherwise used.
-var (
-	_ = errors.New
-	_ = big.NewInt
-	_ = strings.NewReader
-	_ = ethereum.NotFound
-	_ = bind.Bind
-	_ = common.Big1
-	_ = types.BloomLookup
-	_ = event.NewSubscription
-	_ = abi.ConvertType
-)
-
-// CommitHeaderRangeInput is an auto generated low-level Go binding around an user-defined struct.
-type CommitHeaderRangeInput struct {
-	Proof        []byte
-	PublicValues []byte
-}
-
-// UpdateFreezeInput is an auto generated low-level Go binding around an user-defined struct.
-type UpdateFreezeInput struct {
-	Freeze bool
-}
-
-// UpdateGenesisStateInput is an auto generated low-level Go binding around an user-defined struct.
-type UpdateGenesisStateInput struct {
-	Height uint64
-	Header [32]byte
-}
-
-// InitializerInput is an auto generated low-level Go binding around an user-defined struct.
-type InitializerInput struct {
-	Height                    uint64
-	Header                    [32]byte
-	BlobstreamProgramVKeyHash []byte
-	BlobstreamProgramVKey     []byte
-}
-
-// UpdateProgramVkeyInput is an auto generated low-level Go binding around an user-defined struct.
-type UpdateProgramVkeyInput struct {
-	BlobstreamProgramVKeyHash []byte
-	BlobstreamProgramVKey     []byte
-}
-
-// VAInput is an auto generated low-level Go binding around an user-defined struct.
-type VAInput struct {
-	TupleRootNonce *big.Int
-	Tuple          DataRootTuple
-	Proof          BinaryMerkleProof
-}
-
-// BlobStreamInputsMetaData contains all meta data concerning the BlobStreamInputs contract.
-var BlobStreamInputsMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[{\"components\":[{\"internalType\":\"bytes\",\"name\":\"proof\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"publicValues\",\"type\":\"bytes\"}],\"internalType\":\"structCommitHeaderRangeInput\",\"name\":\"inputs\",\"type\":\"tuple\"}],\"name\":\"commitHeaderRange\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint64\",\"name\":\"height\",\"type\":\"uint64\"},{\"internalType\":\"bytes32\",\"name\":\"header\",\"type\":\"bytes32\"},{\"internalType\":\"bytes\",\"name\":\"blobstreamProgramVKeyHash\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"blobstreamProgramVKey\",\"type\":\"bytes\"}],\"internalType\":\"structInitializerInput\",\"name\":\"inputs\",\"type\":\"tuple\"}],\"name\":\"initializer\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"bool\",\"name\":\"freeze\",\"type\":\"bool\"}],\"internalType\":\"structUpdateFreezeInput\",\"name\":\"inputs\",\"type\":\"tuple\"}],\"name\":\"updateFreeze\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint64\",\"name\":\"height\",\"type\":\"uint64\"},{\"internalType\":\"bytes32\",\"name\":\"header\",\"type\":\"bytes32\"}],\"internalType\":\"structUpdateGenesisStateInput\",\"name\":\"inputs\",\"type\":\"tuple\"}],\"name\":\"updateGenesisState\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"bytes\",\"name\":\"blobstreamProgramVKeyHash\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"blobstreamProgramVKey\",\"type\":\"bytes\"}],\"internalType\":\"structUpdateProgramVkeyInput\",\"name\":\"inputs\",\"type\":\"tuple\"}],\"name\":\"updateProgramVkey\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"tuple_root_nonce\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"height\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"dataRoot\",\"type\":\"bytes32\"}],\"internalType\":\"structDataRootTuple\",\"name\":\"tuple\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"bytes32[]\",\"name\":\"sideNodes\",\"type\":\"bytes32[]\"},{\"internalType\":\"uint256\",\"name\":\"key\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"numLeaves\",\"type\":\"uint256\"}],\"internalType\":\"structBinaryMerkleProof\",\"name\":\"proof\",\"type\":\"tuple\"}],\"internalType\":\"structVAInput\",\"name\":\"inputs\",\"type\":\"tuple\"}],\"name\":\"verifyAppend\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
-}
-
-var BlobStreamInputsABI, _ = BlobStreamInputsMetaData.GetAbi()
-
-type TxContext struct {
-	timestamp    int64
-	msgSenderPtr uint32
-}
-
-func txContextToBytes(c TxContext) []byte {
-	// creates array of length 2^10 and access the memory at struct c to have enough space for all the struct.
-	// [:size:size] slices array to size and fixes array size as size
-	size := unsafe.Sizeof(c)
-	bytes := (*[1 << 10]byte)(unsafe.Pointer(&c))[:size:size]
-	return bytes
-}
-
-type GnarkPrecompileInputs struct {
-	ProgramVKeyHash []uint8 `json:"programVKeyHash"`
-	PublicValues    []uint8 `json:"publicValues"`
-	ProofBytes      []uint8 `json:"proofBytes"`
-	ProgramVKey     []uint8 `json:"programVKey"`
-}
 
 func TestState(t *testing.T) {
-	wasmByte, _ := ioutil.ReadFile("/home/ubuntu/seq-wasm/target/wasm32-unknown-unknown/release/input_types_test.wasm")
+	wasmByte, _ := ioutil.ReadFile("../target/wasm32-unknown-unknown/release/input_types_test.wasm")
 
 	ctxWasm := context.Background()
 	mapper := map[string][]byte{
 		"0": {0, 1},
 	}
 
-	mod, allocate_ptr, err := runtime(ctxWasm, mapper, wasmByte)
+	mod, _, err := runtime(ctxWasm, mapper, wasmByte)
 	require.NoError(t, err)
 	test_store_u256 := mod.ExportedFunction("test_store_u256")
 	test_get_u256 := mod.ExportedFunction("test_get_u256")
@@ -141,9 +43,7 @@ func TestState(t *testing.T) {
 	test_store_mapping_bytes32_u32 := mod.ExportedFunction("test_store_mapping_bytes32_u32")
 	test_get_mapping_bytes32_u32 := mod.ExportedFunction("test_get_mapping_bytes32_u32")
 	test_multi_input := mod.ExportedFunction("test_multi_input")
-	test_commit_header := mod.ExportedFunction("test_commit_header")
-	initializer := mod.ExportedFunction("initializer")
-	commit_header_range := mod.ExportedFunction("commit_header_range")
+
 	// store and get u256
 	_, err = test_store_u256.Call(ctxWasm)
 	require.NoError(t, err)
@@ -241,241 +141,4 @@ func TestState(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, result[0], uint64(12))
 
-	_, err = test_commit_header.Call(ctxWasm)
-	require.NoError(t, err)
-	height := uint64(2202300)
-	vkey, err := os.ReadFile("/home/ubuntu/tools/seq-wasm-tools/vk.bin")
-	require.NoError(t, err)
-
-	inputPacked, err := abi.ABI.Pack(*BlobStreamInputsABI, "initializer", InitializerInput{
-		Height:                    height,
-		Header:                    [32]byte(common.Hex2BytesFixed("188b708bee180f43e3a252471754fd35283a6b09a6fd02f5b9130cc15604f80b", 32)),
-		BlobstreamProgramVKeyHash: []byte("414456900754233403821469318749333346230962952863679230760144647782402486705"),
-		BlobstreamProgramVKey:     vkey,
-	})
-	require.NoError(t, err)
-	inputBytes := inputPacked[4:]
-
-	// Allocate and write to memory message sender and tx context.
-	results, err := allocate_ptr.Call(ctxWasm, codec.AddressLen)
-	require.NoError(t, err)
-	address_ptr := results[0]
-	actor := codec.EmptyAddress
-	timeStamp := int64(0)
-	mod.Memory().Write(uint32(address_ptr), actor[:])
-
-	txContext := TxContext{timestamp: timeStamp, msgSenderPtr: uint32(results[0])}
-	txContextBytes := txContextToBytes(txContext)
-
-	results, err = allocate_ptr.Call(ctxWasm, uint64(len(txContextBytes)))
-	require.NoError(t, err)
-	txContextPtr := results[0]
-	mod.Memory().Write(uint32(txContextPtr), txContextBytes)
-
-	// allocate memory for input
-	inputBytesLen := uint64(len(inputBytes))
-	results, err = allocate_ptr.Call(ctxWasm, inputBytesLen)
-	require.NoError(t, err)
-	inputPtr := results[0]
-	mod.Memory().Write(uint32(inputPtr), inputBytes)
-
-	result, err = initializer.Call(ctxWasm, txContextPtr, inputPtr, inputBytesLen)
-	require.NoError(t, err)
-	require.Equal(t, result[0], uint64(1))
-
-	proof := "244e7b9370d3380deeff6340beadf03a8f584235d135e8e91095ac512fbd623b0951e0bdc6960f9115632aeb2715ac4bd39c16af03668159657270b8a0e01fe01c80f3578780b4fabeb831f51e9a2fc13dd966396d24b4bf5ed776df252d254b2b049e67c7f48eba905f332c5c6864ad5963ab20fc7ce27be4665d9c508b73c92274409ea6382d1b2e7db12f5c6274e71a085105d0feb0b1e7b76e5b0ecd6751054c8573b81e5381886b1a59d84626501942b2fd27c0380cc1a072fa0e89013b00dcdb5030d760ad2813e3cff52b5b63289f61c793f067bdfeef27df560e50df286d1d3c6d4966d1e4e1ba6cd811b6056ea80dbd650624f338addbce6f5c04ac1166db59d30b59e37812d63e219533f9a42ead2e5c633723987f1fd8241dd12826ecb0cc7ae72af7e90cceb5b2d01f8cafb16a2c603272f363e088a94ab5b74c05cd243c82d17e6a9aeceb7c5ff41600d2adeb83105e576d731eee02da58e95116dfa8f982f0c94c448028425a7e896082c68c6b2174856306192acadf1557fa0bf78b5b4ef07b5176d3ec45ee40304ea754a1b32951b08454c6b5e4d07e196703543dae9e5f5b2e9a08451bd01adf7cf3a6c35784c53f56fb0bb8ac368afc0a1e1b3a2bcf7aeeb32c4021cc7543c0bd2b4ad181c90b0442172db7d24dbe6be712542de410c22c1c2bf2593caeb7517f2c8986b8ea7463bf87848970b9dff7b400000007267459b6e97a3ee95dbac22ee24444bc22a433e52c20f7847bd253261a43965c1afda52230d7885632811c9608817c694efc563f07828394306a13795fb9559c1f7e71266f3ebe99dbec2f31118eab3c5959cdec5a9af80ae26c27896a2eee3412933ef1ca07e738604ad2520b1e47a85f5be64974dffb74ea27ff8e1ea85e2c12f39a1b85d95e7f0210ee4bed6c6bab5f9b730496b067f39336c6aad9097b3e1e7f976c0859eec6fb8e94220cae0ce8d01774057a6f1316c0c312453d6ec2bd255fe341459509a3867ee1bc6ecbb58de487141ed90e63b42a2164e8825092e92ffc75199966d6774a499c65f7e654d10e7a1dea2a056086e8d2e1e28cface1c2db9608c69874f762c7f3f1fd45dd4f719b77a3f56b55eab22e334ca9384911b115659d31d6a744e994ed42141a239e9b740137a4fd5dcd27d0d04b5fd0cf305000000012f6315f6219fc990b0accef92e45f47e7e26654a10cc5c71267384bd089309e8299de2e8cd06931596485f24160415f0ccf1da3e7430722629122102dfc21710"
-	publicValues := []byte{24, 139, 112, 139, 238, 24, 15, 67, 227, 162, 82, 71, 23, 84, 253, 53, 40, 58, 107, 9, 166, 253, 2, 245, 185, 19, 12, 193, 86, 4, 248, 11, 120, 217, 248, 212, 215, 175, 104, 226, 124, 224, 103, 116, 116, 128, 32, 177, 63, 77, 246, 212, 243, 109, 253, 151, 94, 70, 97, 79, 141, 148, 26, 173, 193, 178, 27, 106, 213, 42, 34, 8, 11, 251, 159, 166, 241, 188, 123, 221, 83, 199, 60, 155, 30, 65, 254, 210, 193, 210, 177, 234, 235, 220, 251, 142, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 33, 154, 188, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 33, 154, 198, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15, 255, 255, 254, 255, 255, 255, 255, 255, 255, 255, 255, 255}
-	inputPacked, err = abi.ABI.Pack(*BlobStreamInputsABI, "commitHeaderRange", CommitHeaderRangeInput{
-		Proof:        []byte(proof),
-		PublicValues: publicValues,
-	})
-	require.NoError(t, err)
-	inputBytes = inputPacked[4:]
-	// Allocate and write to memory message sender and tx context.
-	results, err = allocate_ptr.Call(ctxWasm, codec.AddressLen)
-	require.NoError(t, err)
-	address_ptr = results[0]
-	actor = codec.EmptyAddress
-	timeStamp = int64(0)
-	mod.Memory().Write(uint32(address_ptr), actor[:])
-
-	txContext = TxContext{timestamp: timeStamp, msgSenderPtr: uint32(results[0])}
-	txContextBytes = txContextToBytes(txContext)
-
-	results, err = allocate_ptr.Call(ctxWasm, uint64(len(txContextBytes)))
-	require.NoError(t, err)
-	txContextPtr = results[0]
-	mod.Memory().Write(uint32(txContextPtr), txContextBytes)
-
-	// allocate memory for input
-	inputBytesLen = uint64(len(inputBytes))
-	results, err = allocate_ptr.Call(ctxWasm, inputBytesLen)
-	require.NoError(t, err)
-	inputPtr = results[0]
-	mod.Memory().Write(uint32(inputPtr), inputBytes)
-
-	result, err = commit_header_range.Call(ctxWasm, txContextPtr, inputPtr, inputBytesLen)
-	require.NoError(t, err)
-	require.Equal(t, uint64(1), result[0])
-}
-
-func runtime(ctxWasm context.Context, mapper map[string][]byte, wasmByte []byte) (api.Module, api.Function, error) {
-
-	var allocate_ptr api.Function
-	r := wazero.NewRuntime(ctxWasm)
-
-	stateStoreBytesInner := func(ctxInner context.Context, m api.Module, i uint32, ptr uint32, size uint32) {
-		slot := "slot" + strconv.Itoa(int(i))
-		bytes, ok := m.Memory().Read(ptr, size)
-		if !ok {
-			os.Exit(10)
-		}
-		mapper[slot] = bytes
-	}
-	stateGetBytesInner := func(ctxInner context.Context, m api.Module, i uint32) uint64 {
-		slot := "slot" + strconv.Itoa(int(i))
-		result := mapper[slot]
-		size := uint64(len(result))
-		results, _ := allocate_ptr.Call(ctxInner, size)
-		offset := results[0]
-		m.Memory().Write(uint32(offset), result)
-		return uint64(offset)<<32 | size
-	}
-	stateStoreDynamicBytesInner := func(ctxInner context.Context, m api.Module, id, ptrKey, sizeOfKey, ptr, size uint32) {
-		// read key from memory.
-		key, ok := m.Memory().Read(ptrKey, sizeOfKey)
-		if !ok {
-			os.Exit(10)
-		}
-		// read value from memory.
-		bytes, ok := m.Memory().Read(ptr, size)
-		if !ok {
-			os.Exit(10)
-		}
-		slot := "slot" + strconv.Itoa(int(id)) + hex.EncodeToString(key)
-		mapper[slot] = bytes
-	}
-	stateGetDynamicBytesInner := func(ctxInner context.Context, m api.Module, id, ptrKey, sizeOfKey uint32) uint64 {
-		// read key from memory.
-		key, ok := m.Memory().Read(ptrKey, sizeOfKey)
-		if !ok {
-			os.Exit(10)
-		}
-		slot := "slot" + strconv.Itoa(int(id)) + hex.EncodeToString(key)
-		result := mapper[slot]
-		// write value to memory.
-		size := uint64(len(result))
-		results, _ := allocate_ptr.Call(ctxInner, size)
-		offset2 := results[0]
-		m.Memory().Write(uint32(offset2), result)
-		return uint64(offset2)<<32 | size
-	}
-	gnarkVerify := func(ctxInner context.Context, m api.Module, ptr uint32, size uint32) uint32 {
-		// read from memory
-		dataBytes, ok := m.Memory().Read(ptr, size)
-		if !ok {
-			return 0
-		}
-		// abi unpack the data
-		method := GnarkPreCompileABI.Methods["gnarkPrecompile"]
-		upack, err := method.Inputs.Unpack(dataBytes)
-		if err != nil {
-			return 0
-		}
-		preCompileInput := upack[0].(struct {
-			ProgramVKeyHash []byte `json:"programVKeyHash"`
-			PublicValues    []byte `json:"publicValues"`
-			ProofBytes      []byte `json:"proofBytes"`
-			ProgramVKey     []byte `json:"programVKey"`
-		})
-		publicValuesHash := sha256.Sum256(preCompileInput.PublicValues)
-		publicValuesB := new(big.Int).SetBytes(publicValuesHash[:])
-		publicValuesDigest := new(big.Int).And(publicValuesB, mask)
-		if publicValuesDigest.BitLen() > 253 {
-			return 0
-		}
-
-		sp1Circuit := SP1Circuit{
-			Vars:                 []frontend.Variable{},
-			Felts:                []babybearVariable{},
-			Exts:                 []babybearExtensionVariable{},
-			VkeyHash:             string(preCompileInput.ProgramVKeyHash),
-			CommitedValuesDigest: publicValuesDigest,
-		}
-
-		// fmt.Println(sp1Circuit.VkeyHash)
-		// read vk from preCompileInput
-		vk := plonk.NewVerifyingKey(ecc.BN254)
-		_, err = vk.ReadFrom(bytes.NewBuffer(preCompileInput.ProgramVKey))
-		if err != nil {
-			return 0
-		}
-
-		// read proof from preCompileInput
-		proof := plonk.NewProof(ecc.BN254)
-		proofData, err := hex.DecodeString(string(preCompileInput.ProofBytes))
-		if err != nil {
-			return 0
-		}
-		_, err = proof.ReadFrom(bytes.NewReader(proofData))
-		if err != nil {
-			return 0
-		}
-
-		// create witness
-		wit, err := frontend.NewWitness(&sp1Circuit, ecc.BN254.ScalarField())
-		if err != nil {
-			fmt.Println(err)
-			return 0
-		}
-
-		// get the public witness
-		pubWit, err := wit.Public()
-		if err != nil {
-			fmt.Println(err)
-			return 0
-		}
-
-		// verify the proof
-		err = plonk.Verify(proof, vk, pubWit)
-		if err != nil {
-			fmt.Println(err)
-			// the vk may not be corresponding to the proof or public witness are not corresponding to proofs or proof is invalid
-			return 0
-		}
-		return 1
-	}
-
-	addBalance := func(ctxInner context.Context, m api.Module) {
-		// storage.AddBalance()
-	}
-	subBalance := func(ctxInner context.Context, m api.Module) {}
-
-	// Instantiate the module
-	_, err := r.NewHostModuleBuilder("env").NewFunctionBuilder().
-		WithFunc(stateGetBytesInner).Export("stateGetBytes").
-		NewFunctionBuilder().WithFunc(stateStoreBytesInner).Export("stateStoreBytes").
-		NewFunctionBuilder().WithFunc(stateStoreDynamicBytesInner).Export("stateStoreDynamicBytes").
-		NewFunctionBuilder().WithFunc(stateGetDynamicBytesInner).Export("stateGetDynamicBytes").
-		Instantiate(ctxWasm)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	_, err = r.NewHostModuleBuilder("precompiles").
-		NewFunctionBuilder().WithFunc(gnarkVerify).Export("gnarkVerify").
-		NewFunctionBuilder().WithFunc(addBalance).Export("addBalance").
-		NewFunctionBuilder().WithFunc(subBalance).Export("subBalance").
-		Instantiate(ctxWasm)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	mod, err := r.Instantiate(ctxWasm, wasmByte)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	allocate_ptr = mod.ExportedFunction("allocate_ptr")
-	return mod, allocate_ptr, nil
 }

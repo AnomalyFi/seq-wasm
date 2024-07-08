@@ -30,6 +30,9 @@ const MAPPING_STATE_DATA_COMMITMENTS_ID: u32 = 2;
 // CONSTANT VARIABLES
 const DATA_COMMITMENT_MAX: u64 = 1_000;
 
+/// This function initializes the contract with the initial state variables.
+/// This function can only be called once.
+/// Called during the contract deployment.
 #[cfg_attr(all(target_arch = "wasm32"), export_name = "initializer")]
 #[no_mangle]
 pub extern "C" fn initializer(tx_context: *const TxContext, ptr: *const u8, len: u32) -> bool {
@@ -59,6 +62,7 @@ pub extern "C" fn initializer(tx_context: *const TxContext, ptr: *const u8, len:
     true
 }
 
+/// Only the guardian can set the contract to a frozen state.
 #[cfg_attr(all(target_arch = "wasm32"), export_name = "update_freeze")]
 #[no_mangle]
 pub extern "C" fn update_freeze(tx_context: *const TxContext, ptr: *const u8, len: u32) -> bool {
@@ -80,6 +84,7 @@ pub extern "C" fn update_freeze(tx_context: *const TxContext, ptr: *const u8, le
     true
 }
 
+/// Only the gaurdian can update the genesis state of the contract.
 #[cfg_attr(all(target_arch = "wasm32"), export_name = "update_genesis_state")]
 #[no_mangle]
 pub extern "C" fn update_genesis_state(
@@ -106,6 +111,7 @@ pub extern "C" fn update_genesis_state(
     true
 }
 
+/// Only the guardian can update the program vkey.
 #[cfg_attr(all(target_arch = "wasm32"), export_name = "update_program_vkey")]
 #[no_mangle]
 pub extern "C" fn update_program_vkey(

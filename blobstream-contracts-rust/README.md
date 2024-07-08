@@ -8,4 +8,3 @@
 | verify_attestation | public | _, VAInput |
 | is_frozen | helper |  |
 |is_initialized | helper | |
-| msg_sender | helper | TxContext |

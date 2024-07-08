@@ -122,7 +122,7 @@ pub unsafe extern "C" fn commit_header_range(
         "10310189448205051960894735306968713236725543474929808083983647516402594023487",
     )
     .unwrap(); //@todo dummy header range function id big int
-    if precompiles::gnark_verify(FixedBytes::new([0; 32]), output.clone(), proof, vec![0u8]) {
+    if precompiles::gnark_verify(vec![0u8], output.clone(), proof, vec![0u8]) {
         // valid proof
         let (target_header_hash, state_root_commitment, data_root_commitment) =
             OutputBreaker::decode(&output);
@@ -192,7 +192,7 @@ pub unsafe extern "C" fn rotate(_: *const TxContext, ptr: *const u8, len: u32) -
         "10310189448205051960894735306968713236725543474929808083983647516402594023487",
     )
     .unwrap(); //@todo dummy rotate function id big int
-    if precompiles::gnark_verify(FixedBytes::new([0; 32]), output.clone(), proof, vec![0u8]) {
+    if precompiles::gnark_verify(vec![0u8], output.clone(), proof, vec![0u8]) {
         // this particular verifier is not available publicly yet. @todo
         // valid proof
         let new_authority_set_hash = OutputBreakerRotate::decode(&output);

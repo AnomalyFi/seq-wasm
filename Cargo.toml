@@ -2,6 +2,7 @@
 members = [
     "blobstream-contracts-rust",
     "vector-contracts-rust",
-    "input-types-test", "sdk",
+    "input-types-test",
+    "sdk",
 ]
 resolver = "2"
