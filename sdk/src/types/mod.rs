@@ -1,4 +1,5 @@
 /// Address equivalent to address defined in hypersdk.
+#[derive(Debug, Clone)]
 pub struct Address([u8; Self::LEN]);
 
 impl Address {

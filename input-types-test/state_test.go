@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/AnomalyFi/hypersdk/codec"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,7 +19,7 @@ func TestState(t *testing.T) {
 		"0": {0},
 	}
 
-	mod, _, err := runtime(ctxWasm, mapper, wasmByte)
+	mod, allocate_ptr, err := runtime(ctxWasm, mapper, wasmByte)
 	require.NoError(t, err)
 	test_store_u256 := mod.ExportedFunction("test_store_u256")
 	test_get_u256 := mod.ExportedFunction("test_get_u256")
@@ -43,6 +44,7 @@ func TestState(t *testing.T) {
 	test_store_mapping_bytes32_u32 := mod.ExportedFunction("test_store_mapping_bytes32_u32")
 	test_get_mapping_bytes32_u32 := mod.ExportedFunction("test_get_mapping_bytes32_u32")
 	test_multi_input := mod.ExportedFunction("test_multi_input")
+	test_tx_context := mod.ExportedFunction("test_tx_context")
 
 	// store and get u256
 	_, err = test_store_u256.Call(ctxWasm)
@@ -141,4 +143,22 @@ func TestState(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, result[0], uint64(12))
 
+	// test tx context
+	// Allocate and write to memory message sender and tx context.
+	results, err := allocate_ptr.Call(ctxWasm, codec.AddressLen)
+	require.NoError(t, err)
+	address_ptr := uint32(results[0])
+	actor := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33}
+	timeStamp := int64(149)
+	mod.Memory().Write(address_ptr, actor[:])
+
+	txContext := TxContext{timestamp: timeStamp, msgSenderPtr: address_ptr}
+	txContextBytes := txContextToBytes(txContext)
+
+	txContextPtr := address_ptr + 33
+	mod.Memory().Write(uint32(txContextPtr), txContextBytes)
+	// @todo memory allocator is fuckinn with us. It is allocating memory over a address that has been previously allocated by itself.
+	results, err = test_tx_context.Call(ctxWasm, uint64(txContextPtr))
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), results[0])
 }

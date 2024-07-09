@@ -4,6 +4,7 @@ extern crate wee_alloc;
 
 pub use seq_wasm_sdk::allocator::{allocate, deallocate}; // re-export
 use seq_wasm_sdk::state::{self};
+use seq_wasm_sdk::types::Address;
 use seq_wasm_sdk::{FixedBytes, U256};
 pub use std::alloc::{alloc, Layout};
 use std::vec;
@@ -176,4 +177,27 @@ pub extern "C" fn test_get_mapping_bytes32_u32() -> bool {
 #[no_mangle]
 pub extern "C" fn test_multi_input(a: u32, b: u64, c: u32, d: u32) -> u32 {
     a + b as u32 + c + d
+}
+
+#[no_mangle]
+pub extern "C" fn test_tx_context(tx_context_ptr: *const seq_wasm_sdk::utils::TxContext) -> u32 {
+    let tx_ctx = unsafe {
+        assert!(!tx_context_ptr.is_null());
+        &*tx_context_ptr
+    };
+    let time_stamp = tx_ctx.time_stamp();
+    if time_stamp != 149 {
+        return 20;
+    }
+    let msg_sender = tx_ctx.msg_sender();
+    let new_add = Address::new([
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+        26, 27, 28, 29, 30, 31, 32, 33,
+    ]);
+    if msg_sender != new_add {
+        state::store_address(100, &msg_sender);
+        state::store_address(101, &new_add);
+        return 30;
+    }
+    1
 }

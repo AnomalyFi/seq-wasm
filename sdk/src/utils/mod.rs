@@ -1,6 +1,7 @@
 use crate::{slice, sol, types};
 
 /// Contains the Context of the Transaction. This is passed to the contract as a pointer from go runtime.
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct TxContext {
     // time_stamp of block, the transaction is included in.
@@ -12,7 +13,7 @@ pub struct TxContext {
 impl TxContext {
     /// Unpacks the TxContext from the pointer.
     pub fn unpack(ptr: *const TxContext) -> Self {
-        unsafe { ptr.read() }
+        unsafe { *ptr }
     }
 
     /// Returns the msg_sender(caller) of the transaction.

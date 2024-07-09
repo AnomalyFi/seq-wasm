@@ -11,7 +11,7 @@ use input_type::{
 
 // seq wasm sdk imports.
 pub use seq_wasm_sdk::allocator::*;
-use seq_wasm_sdk::{precompiles, state, types, utils::TxContext};
+use seq_wasm_sdk::{precompiles, state, utils::TxContext};
 use seq_wasm_sdk::{slice, sol, Bytes, FixedBytes, FromHex, SolType, SolValue, U256};
 
 // get state variables enum from program vm.
@@ -119,7 +119,7 @@ pub extern "C" fn update_program_vkey(
     ptr: *const u8,
     len: u32,
 ) -> bool {
-    // Decode msg_sender from tx_context and inputs from UpdateGenesisStateInput.
+    // Decode msg_sender from tx_context and inputs from UpdateProgramVkeyInput.
     let msg_sender = TxContext::unpack(tx_context).msg_sender();
     let (program_vkey_hash, program_vkey) = UpdateProgramVkeyInput::new(ptr, len).unpack();
 
@@ -138,7 +138,7 @@ pub extern "C" fn update_program_vkey(
     true
 }
 
-/// Commits the new header at targetBlock and the data commitment for the block range [latestBlock, targetBlock].
+/// Commits the new header at targetBlock and the data commitment for the block range [latestBlock, targetBlock).
 #[cfg_attr(all(target_arch = "wasm32"), export_name = "commit_header_range")]
 #[no_mangle]
 pub extern "C" fn commit_header_range(_: *const TxContext, ptr: *const u8, len: u32) -> bool {
@@ -239,6 +239,9 @@ pub extern "C" fn verify_attestation(_: *const TxContext, ptr: *const u8, len: u
     is_proof_valid
 }
 
+// Helper functions
+
+/// Returns true if the contract is frozen, false otherwise.
 fn is_frozen() -> bool {
     if state::get_bool(STATIC_FROZEN) == 1 {
         true
@@ -247,6 +250,7 @@ fn is_frozen() -> bool {
     }
 }
 
+/// Returns true if the contract is initialized, false otherwise.
 fn is_initialized() -> bool {
     if state::get_bool(STATIC_ISINITIALIZED) == 1 {
         true

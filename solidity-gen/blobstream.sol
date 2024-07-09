@@ -45,5 +45,5 @@ interface BlobStreamInputs {
     function updateGenesisState(UpdateGenesisStateInput calldata inputs) external;  
     function updateProgramVkey(UpdateProgramVkeyInput calldata inputs) external;  
     function commitHeaderRange(CommitHeaderRangeInput calldata inputs) external;  
-    function verifyAppend(VAInput calldata inputs) external;
+    function verifyAttestation(VAInput calldata inputs) external;
 }
