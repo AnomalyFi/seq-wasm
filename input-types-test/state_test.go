@@ -157,7 +157,7 @@ func TestState(t *testing.T) {
 
 	txContextPtr := address_ptr + 33
 	mod.Memory().Write(uint32(txContextPtr), txContextBytes)
-	// @todo memory allocator is fuckinn with us. It is allocating memory over a address that has been previously allocated by itself.
+
 	results, err = test_tx_context.Call(ctxWasm, uint64(txContextPtr))
 	require.NoError(t, err)
 	require.Equal(t, uint64(1), results[0])

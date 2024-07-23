@@ -13,6 +13,7 @@ use input_type::{
 pub use seq_wasm_sdk::allocator::*;
 use seq_wasm_sdk::{precompiles, state, utils::TxContext};
 use seq_wasm_sdk::{slice, sol, Bytes, FixedBytes, FromHex, SolType, SolValue, U256};
+use seq_wasm_sdk_macros::public;
 
 // get state variables enum from program vm.
 const STATIC_ISINITIALIZED: u32 = 0;
@@ -30,19 +31,16 @@ const MAPPING_STATE_DATA_COMMITMENTS_ID: u32 = 2;
 // CONSTANT VARIABLES
 const DATA_COMMITMENT_MAX: u64 = 1_000;
 
+#[public]
 /// This function initializes the contract with the initial state variables.
-/// This function can only be called once.
-/// Called during the contract deployment.
-#[cfg_attr(all(target_arch = "wasm32"), export_name = "initializer")]
-#[no_mangle]
-pub extern "C" fn initializer(tx_context: *const TxContext, ptr: *const u8, len: u32) -> bool {
+/// Can only be called once, mostly during the contract deployment.
+pub fn initializer() {
     if is_initialized() {
         // contract already initialized
         return false;
     }
 
     // Decode msg_sender from tx_context and inputs from IntializerInput.
-    let msg_sender = TxContext::unpack(tx_context).msg_sender();
     let (height, header, blobstream_program_vkey_hash, blobstream_program_vkey) =
         InitializerInput::new(ptr, len).unpack();
 
@@ -62,12 +60,10 @@ pub extern "C" fn initializer(tx_context: *const TxContext, ptr: *const u8, len:
     true
 }
 
+#[public]
 /// Only the guardian can set the contract to a frozen state.
-#[cfg_attr(all(target_arch = "wasm32"), export_name = "update_freeze")]
-#[no_mangle]
-pub extern "C" fn update_freeze(tx_context: *const TxContext, ptr: *const u8, len: u32) -> bool {
+pub fn update_freeze() {
     // Decode msg_sender from tx_context and inputs from UpdateFreezeInput.
-    let msg_sender = TxContext::unpack(tx_context).msg_sender();
     let freeze = UpdateFreezeInput::new(ptr, len).freeze;
 
     // Fetch the guardian address from the state and check if the msg_sender is the guardian.
@@ -84,16 +80,11 @@ pub extern "C" fn update_freeze(tx_context: *const TxContext, ptr: *const u8, le
     true
 }
 
+#[public]
 /// Only the gaurdian can update the genesis state of the contract.
-#[cfg_attr(all(target_arch = "wasm32"), export_name = "update_genesis_state")]
-#[no_mangle]
-pub extern "C" fn update_genesis_state(
-    tx_context: *const TxContext,
-    ptr: *const u8,
-    len: u32,
-) -> bool {
+pub fn update_genesis_state() {
     // Decode msg_sender from tx_context and inputs from UpdateGenesisStateInput.
-    let msg_sender = TxContext::unpack(tx_context).msg_sender();
+
     let (height, header) = UpdateGenesisStateInput::new(ptr, len).unpack();
 
     // Fetch the guardian address from the state and check if the msg_sender is the guardian.
@@ -111,16 +102,11 @@ pub extern "C" fn update_genesis_state(
     true
 }
 
+#[public]
 /// Only the guardian can update the program vkey.
-#[cfg_attr(all(target_arch = "wasm32"), export_name = "update_program_vkey")]
-#[no_mangle]
-pub extern "C" fn update_program_vkey(
-    tx_context: *const TxContext,
-    ptr: *const u8,
-    len: u32,
-) -> bool {
+pub fn update_program_vkey() {
     // Decode msg_sender from tx_context and inputs from UpdateProgramVkeyInput.
-    let msg_sender = TxContext::unpack(tx_context).msg_sender();
+
     let (program_vkey_hash, program_vkey) = UpdateProgramVkeyInput::new(ptr, len).unpack();
 
     // Fetch the guardian address from the state and check if the msg_sender is the guardian.
@@ -138,10 +124,9 @@ pub extern "C" fn update_program_vkey(
     true
 }
 
+#[public]
 /// Commits the new header at targetBlock and the data commitment for the block range [latestBlock, targetBlock).
-#[cfg_attr(all(target_arch = "wasm32"), export_name = "commit_header_range")]
-#[no_mangle]
-pub extern "C" fn commit_header_range(_: *const TxContext, ptr: *const u8, len: u32) -> bool {
+pub fn commit_header_range() {
     // unpack proof and public values from CommitHeaderRangeInput.
     let (proof, public_values) = CommitHeaderRangeInput::new(ptr, len).unpack();
 
@@ -212,12 +197,11 @@ pub extern "C" fn commit_header_range(_: *const TxContext, ptr: *const u8, len: 
     }
 }
 
+#[public]
 /// Verify the attestation for the given proof nonce, tuple, and proof. This is taken from
 /// the existing Blobstream contract and is used to verify the data hash for a specific block
 /// against a posted data commitment.
-#[cfg_attr(all(target_arch = "wasm32"), export_name = "verify_attestation")]
-#[no_mangle]
-pub extern "C" fn verify_attestation(_: *const TxContext, ptr: *const u8, len: u32) -> bool {
+pub fn verify_attestation() {
     // Decode the inputs from the VAInput struct.
     let (proof_nonce, tuple, proof) = VAInput::new(ptr, len).unpack();
 

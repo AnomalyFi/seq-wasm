@@ -4,5 +4,6 @@ members = [
     "vector-contracts-rust",
     "input-types-test",
     "sdk",
+    "sdk-macros",
 ]
 resolver = "2"

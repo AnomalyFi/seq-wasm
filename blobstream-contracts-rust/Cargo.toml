@@ -9,7 +9,7 @@ author = "manojkgorle"
 alloy-sol-types = "0.6.3"
 sha2 = { version = "0.10", default-features = false }
 seq_wasm_sdk = { path = "../sdk" }
-
+seq_wasm_sdk_macros = { path = "../sdk-macros" }
 [profile.release]
 opt-level = "z"
 lto = true

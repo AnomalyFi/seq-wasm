@@ -12,6 +12,7 @@ use input_type::{
 pub use seq_wasm_sdk::allocator::*;
 use seq_wasm_sdk::{keccak256, slice, sol, FixedBytes, SolType, SolValue};
 use seq_wasm_sdk::{precompiles, state, utils::TxContext};
+use seq_wasm_sdk_macros::public;
 
 // state variables
 const STATIC_ISINITIALIZED: u32 = 0;
@@ -30,12 +31,11 @@ const MAPPING_DATA_ROOT_COMMITMENTS_ID: u32 = 3;
 const MAPPING_STATE_ROOT_COMMITMENTS_ID: u32 = 4;
 const MAPPING_RANGE_START_BLOCKS_ID: u32 = 5;
 
+#[public]
 /// This function initializes the contract with the initial state variables.
 /// This function can only be called once.
 /// Called during the contract deployment.
-#[cfg_attr(all(target_arch = "wasm32"), export_name = "initializer")]
-#[no_mangle]
-pub extern "C" fn initializer(tx_context: *const TxContext, ptr: *const u8, len: u32) -> bool {
+pub fn initializer() {
     if is_initialized() {
         // contract already initialized
         return false;
@@ -76,10 +76,9 @@ pub extern "C" fn initializer(tx_context: *const TxContext, ptr: *const u8, len:
     true
 }
 
+#[public]
 /// Only the guardian can set the contract to a frozen state.
-#[cfg_attr(all(target_arch = "wasm32"), export_name = "update_freeze")]
-#[no_mangle]
-pub extern "C" fn update_freeze(tx_context: *const TxContext, ptr: *const u8, len: u32) -> bool {
+pub fn update_freeze() {
     // Decode msg_sender from tx_context and inputs from UpdateFreezeInput.
     let msg_sender = TxContext::unpack(tx_context).msg_sender();
     let owner = state::get_address(STATIC_GUARDIAN);
@@ -96,17 +95,9 @@ pub extern "C" fn update_freeze(tx_context: *const TxContext, ptr: *const u8, le
     true
 }
 
+#[public]
 /// Only the guardian can update the program vkey.
-#[cfg_attr(
-    all(target_arch = "wasm32"),
-    export_name = "update_vector_program_vkey"
-)]
-#[no_mangle]
-pub extern "C" fn update_vector_program_vkey(
-    tx_context: *const TxContext,
-    ptr: *const u8,
-    len: u32,
-) -> bool {
+pub fn update_vector_program_vkey() {
     // Decode msg_sender from tx_context and inputs from UpdateVectorProgramVKeyInput.
     let msg_sender = TxContext::unpack(tx_context).msg_sender();
     let (program_vkey_hash, program_vkey) = UpdateVectorProgramVkeyInput::new(ptr, len).unpack();
@@ -126,16 +117,9 @@ pub extern "C" fn update_vector_program_vkey(
     true
 }
 
-#[cfg_attr(
-    all(target_arch = "wasm32"),
-    export_name = "update_commitment_tree_size"
-)]
-#[no_mangle]
-pub extern "C" fn update_commitment_tree_size(
-    tx_context: *const TxContext,
-    ptr: *const u8,
-    len: u32,
-) -> bool {
+#[public]
+/// Only the guardian can update the commitment tree size.
+pub fn update_commitment_tree_size() {
     // Decode msg_sender from tx_context and inputs from UpdateCommitmentTreeSizeInput.
     let msg_sender = TxContext::unpack(tx_context).msg_sender();
     let header_range_commitment_tree_size = UpdateCommitmentTreeSizeInput::new(ptr, len).unpack();
@@ -157,14 +141,9 @@ pub extern "C" fn update_commitment_tree_size(
     true
 }
 
+#[public]
 /// Only the gaurdian can update the genesis state of the contract.
-#[cfg_attr(all(target_arch = "wasm32"), export_name = "update_genesis_state")]
-#[no_mangle]
-pub extern "C" fn update_genesis_state(
-    tx_context: *const TxContext,
-    ptr: *const u8,
-    len: u32,
-) -> bool {
+pub fn update_genesis_state() {
     // Decode msg_sender from tx_context and inputs from UpdateGenesisStateInput.
     let msg_sender = TxContext::unpack(tx_context).msg_sender();
     let (height, header, authority_set_id, authority_set_hash) =
@@ -191,14 +170,9 @@ pub extern "C" fn update_genesis_state(
     true
 }
 
+#[public]
 // Only the guardian can update the block range data.
-#[cfg_attr(all(target_arch = "wasm32"), export_name = "update_block_range_data")]
-#[no_mangle]
-pub extern "C" fn update_block_range_data(
-    tx_context: *const TxContext,
-    ptr: *const u8,
-    len: u32,
-) -> bool {
+pub fn update_block_range_data() {
     // Decode msg_sender from tx_context and inputs from UpdateBlockRangeDataInput.
     let msg_sender = TxContext::unpack(tx_context).msg_sender();
     let (
@@ -287,12 +261,11 @@ pub extern "C" fn update_block_range_data(
     true
 }
 
+#[public]
 /// Add target header hash, and data + state commitments for (latestBlock, targetBlock].
 /// The trusted block and requested block must have the same authority set id. If the target
 /// block is greater than the max batch size of the circuit, the proof will fail to generate.
-#[cfg_attr(all(target_arch = "wasm32"), export_name = "commit_header_range")]
-#[no_mangle]
-pub extern "C" fn commit_header_range(_: *const TxContext, ptr: *const u8, len: u32) -> bool {
+pub fn commit_header_range() {
     // unpack proof and public values from CommitHeaderRangeInput.
     let (proof, public_values) = CommitHeaderRangeAndRotateInput::new(ptr, len).unpack();
     let (proof_type, header_range_outputs, _) =
@@ -413,10 +386,9 @@ pub extern "C" fn commit_header_range(_: *const TxContext, ptr: *const u8, len: 
     }
 }
 
+#[public]
 /// Adds the authority set hash for the next authority set id.
-#[cfg_attr(all(target_arch = "wasm32"), export_name = "rotate")]
-#[no_mangle]
-pub unsafe extern "C" fn rotate(_: *const TxContext, ptr: *const u8, len: u32) -> bool {
+pub fn rotate() {
     // unpack proof and public values from CommitHeaderRangeInput.
     let (proof, public_values) = CommitHeaderRangeAndRotateInput::new(ptr, len).unpack();
     let (proof_type, _, rotate_outputs) =

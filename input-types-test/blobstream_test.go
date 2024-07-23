@@ -17,7 +17,7 @@ func TestBlobStream(t *testing.T) {
 
 	ctxWasm := context.Background()
 	mapper := map[string][]byte{
-		"0": {0},
+		"1": {20},
 	}
 
 	vkey, err := os.ReadFile("../vk.bin")
