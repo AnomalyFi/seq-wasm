@@ -1,4 +1,4 @@
-use crate::{slice, sol, FixedBytes, SolType, U256};
+use crate::{input, slice, sol, FixedBytes, SolType, U256};
 
 sol!(
     struct DataRootTuple{
@@ -53,6 +53,10 @@ sol!(
         bytes32 left;
         bytes32 right;
     }
+
+    struct HelloWorld{
+        bytes32 message;
+    }
 );
 
 impl InitializerInput {
@@ -64,8 +68,8 @@ impl InitializerInput {
         (
             self.height,
             self.header.clone(),
-            self.blobstreamProgramVKeyHash.clone(),
-            self.blobstreamProgramVKey.clone(),
+            self.blobstreamProgramVKeyHash.clone().to_vec(),
+            self.blobstreamProgramVKey.clone().to_vec(),
         )
     }
 }
@@ -97,8 +101,8 @@ impl UpdateProgramVkeyInput {
     }
     pub fn unpack(&self) -> (Vec<u8>, Vec<u8>) {
         (
-            self.blobstreamProgramVKeyHash.clone(),
-            self.blobstreamProgramVKey.clone(),
+            self.blobstreamProgramVKeyHash.clone().to_vec(),
+            self.blobstreamProgramVKey.clone().to_vec(),
         )
     }
 }
@@ -123,7 +127,10 @@ impl CommitHeaderRangeInput {
         Self::abi_decode(init_input, true).unwrap()
     }
     pub fn unpack(&self) -> (Vec<u8>, Vec<u8>) {
-        (self.proof.clone(), self.publicValues.clone())
+        (
+            self.proof.clone().to_vec(),
+            self.publicValues.clone().to_vec(),
+        )
     }
     pub fn unpack_po(
         &self,

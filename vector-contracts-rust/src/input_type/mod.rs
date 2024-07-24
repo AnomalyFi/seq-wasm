@@ -97,8 +97,8 @@ impl InitializerInput {
             self.authoritySetId,
             self.authoritySetHash,
             self.headerRangeCommitmentTreeSize,
-            self.vectorProgramVKeyHash.clone(),
-            self.vectorProgramVKey.clone(),
+            self.vectorProgramVKeyHash.clone().to_vec(),
+            self.vectorProgramVKey.clone().to_vec(),
         )
     }
 }
@@ -120,8 +120,8 @@ impl UpdateVectorProgramVkeyInput {
     }
     pub fn unpack(&self) -> (Vec<u8>, Vec<u8>) {
         (
-            self.blobstreamProgramVKeyHash.clone(),
-            self.blobstreamProgramVKey.clone(),
+            self.blobstreamProgramVKeyHash.clone().to_vec(),
+            self.blobstreamProgramVKey.clone().to_vec(),
         )
     }
 }
@@ -185,14 +185,17 @@ impl CommitHeaderRangeAndRotateInput {
         Self::abi_decode(init_input, true).unwrap()
     }
     pub fn unpack(&self) -> (Vec<u8>, Vec<u8>) {
-        (self.proof.clone(), self.publicValues.clone())
+        (
+            self.proof.clone().to_vec(),
+            self.publicValues.clone().to_vec(),
+        )
     }
     pub fn unpack_po(&self) -> (ProofType, Vec<u8>, Vec<u8>) {
         let po = ProofOutputs::abi_decode(&self.publicValues, true).unwrap();
         (
             po.proofType,
-            po.headerRangeOutputs.clone(),
-            po.rotateOutputs.clone(),
+            po.headerRangeOutputs.clone().to_vec(),
+            po.rotateOutputs.clone().to_vec(),
         )
     }
 }

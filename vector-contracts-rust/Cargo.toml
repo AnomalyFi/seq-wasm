@@ -7,7 +7,7 @@ author = "manojkgorle"
 [dependencies]
 seq_wasm_sdk = { path = "../sdk" }
 seq_wasm_sdk_macros = { path = "../sdk-macros" }
-alloy-sol-types = "0.6.3"
+alloy-sol-types = "0.7.7"
 
 [profile.release]
 opt-level = "z"

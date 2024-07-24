@@ -1,7 +1,9 @@
 extern crate proc_macro;
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, Attribute, Error, ItemFn, ReturnType, Visibility};
+use syn::{
+    parse_macro_input, Attribute, Error, Fields, ItemFn, ItemStruct, ReturnType, Visibility,
+};
 
 /// This macro is used to define a public function that can be called from the seq wasm runtime.
 /// The function must be declared as `pub fn function_name() {}` without any additional modifiers (unsafe, extern, const, async, etc.).
@@ -48,4 +50,37 @@ pub fn public(_metadata: TokenStream, item: TokenStream) -> TokenStream {
             #function_body
         }
     })
+}
+
+#[proc_macro_attribute]
+pub fn input(_metadata: TokenStream, item: TokenStream) -> TokenStream {
+    let input_struct = parse_macro_input!(item as ItemStruct);
+    let struct_name = &input_struct.ident;
+    let fields = match input_struct.fields {
+        Fields::Named(y) => y.named,
+        _ => {
+            return Error::new_spanned(input_struct, "Input struct must have named fields")
+                .to_compile_error()
+                .into();
+        }
+    };
+    let mut field_names = Vec::new();
+    let mut field_types = Vec::new();
+    for field in fields {
+        field_names.push(field.ident.unwrap());
+        field_types.push(field.ty);
+    }
+
+    TokenStream::from(quote!(
+        impl #struct_name {
+            pub fn new(ptr: *const u8, len: u32) -> Self {
+                let input = unsafe { slice::from_raw_parts(ptr, (len as u16).into()) };
+                Self::abi_decode(input, true).unwrap()
+            }
+
+            pub fn unpack(&self) -> (#(#field_types),*) {
+                (#(#field_names),*)
+            }
+        }
+    ))
 }

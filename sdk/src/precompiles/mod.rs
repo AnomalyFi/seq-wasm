@@ -32,10 +32,10 @@ pub fn gnark_verify(
     program_vkey: Vec<u8>,
 ) -> bool {
     let data = gnarkPrecompileInputs {
-        programVKeyHash: program_vkey_hash,
-        publicValues: public_values,
-        proofBytes: proof,
-        programVKey: program_vkey,
+        programVKeyHash: program_vkey_hash.into(),
+        publicValues: public_values.into(),
+        proofBytes: proof.into(),
+        programVKey: program_vkey.into(),
     }
     .abi_encode();
 

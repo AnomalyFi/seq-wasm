@@ -75,7 +75,7 @@ pub fn leaf_digest(data: Bytes) -> FixedBytes<32> {
     let leaf_prefix = FixedBytes::<1>::from_hex("00").unwrap();
     let leaf_digest = LeafDigestPacker {
         leaf_prefix,
-        data: data.to_vec(),
+        data: data,
     };
     let digest = sha2::Sha256::digest(leaf_digest.abi_encode_packed()).to_vec();
     FixedBytes::from_slice(&digest)
@@ -156,8 +156,6 @@ pub fn bits_len(mut x: U256) -> U256 {
     }
     count
 }
-
-//@todo translate math libraries in a better way here.
 
 pub fn node_digest(left: FixedBytes<32>, right: FixedBytes<32>) -> FixedBytes<32> {
     let node_prefix = FixedBytes::<1>::from_hex("01").unwrap();

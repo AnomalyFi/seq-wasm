@@ -6,6 +6,8 @@ WASM smart contracts for SEQ chain.
 
 - [SDK](./sdk/): A frame work for writing smart contracts deployable to SEQ.
 
+- [SDK-Macros](./sdk-macros/): Macros for most commonly used artifacts.
+
 - [blobstream-rs](./blobstream-contracts-rust/): A WASM compilable Blobstream version written in rust, compatible with SEQ.
 
 - [vector-rs](./vector-contracts-rust/): A WASM compilable Vector version written in rust, compatible with SEQ.
@@ -29,7 +31,9 @@ TODO:
 
 - [x] Transfer native token TKN, with empty ID.
 
-- [ ] Use macros for public functions and state variables.
+- [ ] Use macros for:
+    - [x] public functions.
+    - [ ] state variables.
 
 - [x] Blobstream wasm contract size ~110KiB is in limits. If size increases by a large factor, then try optimizing by inlining state functions.
 

@@ -13,7 +13,7 @@ use input_type::{
 pub use seq_wasm_sdk::allocator::*;
 use seq_wasm_sdk::{precompiles, state, utils::TxContext};
 use seq_wasm_sdk::{slice, sol, Bytes, FixedBytes, FromHex, SolType, SolValue, U256};
-use seq_wasm_sdk_macros::public;
+use seq_wasm_sdk_macros::{input, public};
 
 // get state variables enum from program vm.
 const STATIC_ISINITIALIZED: u32 = 0;
